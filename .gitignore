@@ -1,0 +1,56 @@
+########################
+# OS / system files
+########################
+.DS_Store
+Thumbs.db
+
+########################
+# Logs / temp
+########################
+*.log
+*.tmp
+*.swp
+*.swo
+
+########################
+# Build artifacts
+########################
+bin/
+obj/
+build/
+dist/
+out/
+*.exe
+*.dll
+*.pdb
+
+########################
+# Dependencies & caches
+########################
+node_modules/
+.vendor/
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+########################
+# IDE / editor files
+########################
+.vscode/
+.idea/
+*.suo
+*.user
+*.userossc
+*.sln.docstates
+
+########################
+# Environment & secrets
+########################
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.crt
+*.p12
