@@ -10,7 +10,7 @@
     <ProductVersion>10.0.20506</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <RootNamespace></RootNamespace>
-    <ProjectGuid>{AEE9AD85-EEC8-624E-CA2E-A7DB863E0D44}</ProjectGuid>
+    <ProjectGuid>{E67F72C3-9366-0151-4368-790BB1628A05}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <AssemblyName>GameScripts</AssemblyName>

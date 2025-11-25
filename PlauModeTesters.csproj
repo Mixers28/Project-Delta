@@ -10,7 +10,7 @@
     <ProductVersion>10.0.20506</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <RootNamespace></RootNamespace>
-    <ProjectGuid>{DC78560C-F4DC-173C-7580-0CFB4E1946CD}</ProjectGuid>
+    <ProjectGuid>{93CA5984-CB7B-7973-A980-EDC12DCB3941}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <AssemblyName>PlauModeTesters</AssemblyName>
@@ -929,7 +929,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="GameScripts.csproj">
-      <Project>{AEE9AD85-EEC8-624E-CA2E-A7DB863E0D44}</Project>
+      <Project>{E67F72C3-9366-0151-4368-790BB1628A05}</Project>
       <Name>GameScripts</Name>
     </ProjectReference>
   </ItemGroup>
