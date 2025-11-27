@@ -232,19 +232,4 @@ public class GameOverPanel : MonoBehaviour
         if (panel != null) panel.SetActive(false);
         GameManager.Instance.StartTestLevel();
     }
-
-    // TEST: Press W key to manually test win screen
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.W))
-        {
-            Debug.Log("TEST: Manual WIN trigger (W pressed)");
-            HandleGameEnd(true);
-        }
-        if (Input.GetKeyDown(KeyCode.L))
-        {
-            Debug.Log("TEST: Manual LOSE trigger (L pressed)");
-            HandleGameEnd(false);
-        }
-    }
 }
