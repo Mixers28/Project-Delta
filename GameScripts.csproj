@@ -69,6 +69,7 @@
     <Compile Include="Assets\Scripts\Models\Goal.cs" />
     <Compile Include="Assets\Scripts\Patterns\FlushPattern.cs" />
     <Compile Include="Assets\Scripts\Patterns\NewBehaviourScript.cs" />
+    <Compile Include="Assets\Scripts\UI\GameOverPanel.cs" />
     <Compile Include="Assets\Scripts\Managers\GameManager.cs" />
     <Compile Include="Assets\Scripts\UI\CardDisplay.cs" />
     <Compile Include="Assets\Scripts\Patterns\FullHousePattern.cs" />

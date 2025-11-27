@@ -7,6 +7,17 @@
 [Ll]ogs/
 [Uu]serSettings/
 
+# Generated project files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+
+# Plastic SCM metadata
+.plastic/
+plastic.workspace
+ignore.conf
+
 # IDE stuff
 .vs/
 .vscode/
@@ -15,3 +26,7 @@
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Unity package cache (contains large binary files)
+/Library/PackageCache/
+/Packages/

@@ -52,21 +52,44 @@ public class Goal
     }
 
     // Check if a pattern satisfies this goal
-    public bool MatchesPattern(IPattern pattern)
+   public bool MatchesPattern(IPattern pattern)
+{
+    switch (type)
     {
-        return type switch
-        {
-            GoalType.Pair => pattern.Name == "Pair",
-            GoalType.ThreeOfKind => pattern.Name == "Three of a Kind",
-            GoalType.Run3 => pattern.Name == "Run of 3",
-            GoalType.Run4 => pattern.Name == "Run of 4",
-            GoalType.Run5 => pattern.Name == "Run of 5",
-            GoalType.Flush => pattern.Name == "Flush",
-            GoalType.FullHouse => pattern.Name == "Full House",
-            GoalType.TotalScore => false, // Score goals handled separately
-            _ => false
-        };
+        case GoalType.Pair:
+            return pattern.Name == "Pair";
+            
+        case GoalType.ThreeOfKind:
+            return pattern.Name == "Three of a Kind";
+            
+        case GoalType.Run3:
+            // Any run of 3 or more counts
+            return pattern.Name == "Run of 3" || 
+                   pattern.Name == "Run of 4" || 
+                   pattern.Name == "Run of 5";
+            
+        case GoalType.Run4:
+            // Any run of 4 or more counts
+            return pattern.Name == "Run of 4" || 
+                   pattern.Name == "Run of 5";
+            
+        case GoalType.Run5:
+            // Only run of 5+ counts
+            return pattern.Name == "Run of 5";
+            
+        case GoalType.Flush:
+            return pattern.Name == "Flush";
+            
+        case GoalType.FullHouse:
+            return pattern.Name == "Full House";
+            
+        case GoalType.TotalScore:
+            return false; // Score goals handled separately
+            
+        default:
+            return false;
     }
+}
 
     public void Increment(int amount = 1)
     {

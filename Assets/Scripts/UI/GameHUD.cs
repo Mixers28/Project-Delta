@@ -10,22 +10,42 @@ public class GameHUD : MonoBehaviour
     [SerializeField] private TextMeshProUGUI deckCountText;
 
     private void Start()
-    {
-        if (GameManager.Instance?.CurrentGame != null)
-        {
-            var game = GameManager.Instance.CurrentGame;
-            game.OnScoreChanged += UpdateScore;
-            game.OnGoalUpdated += UpdateGoals;
-            game.OnHandChanged += UpdateMoves;
-            game.OnCardDrawn += UpdateDeckCount;
+{
+    Debug.Log("=== GameHUD.Start() ===");
+    
+    // Check all references
+    if (scoreText == null) Debug.LogError("scoreText is NULL!");
+    if (movesText == null) Debug.LogError("movesText is NULL!");
+    if (goalsText == null) Debug.LogError("goalsText is NULL!");
+    if (deckCountText == null) Debug.LogError("deckCountText is NULL!");
+    
+    // Wait for GameManager
+    StartCoroutine(InitializeHUD());
+}
 
-            // Initial update
-            UpdateScore(game.Score);
-            UpdateMoves();
-            UpdateGoals(null);
-            UpdateDeckCount(default);
-        }
+private System.Collections.IEnumerator InitializeHUD()
+{
+    // Wait for GameManager to be ready
+    while (GameManager.Instance == null || GameManager.Instance.CurrentGame == null)
+    {
+        yield return null;
     }
+    
+    Debug.Log("GameManager ready, subscribing to events");
+    
+    var game = GameManager.Instance.CurrentGame;
+    game.OnScoreChanged += UpdateScore;
+    game.OnGoalUpdated += UpdateGoals;
+    game.OnHandChanged += UpdateMoves;
+    game.OnCardDrawn += UpdateDeckCount;
+
+    // Force initial update
+    Debug.Log("Forcing initial updates...");
+    UpdateScore(game.Score);
+    UpdateMoves();
+    UpdateGoals(null);
+    UpdateDeckCount(default);
+}
 
     private void UpdateScore(int score)
     {
@@ -38,13 +58,33 @@ public class GameHUD : MonoBehaviour
         movesText.text = $"Moves: {game.MovesRemaining}";
     }
 
-    private void UpdateGoals(Goal goal)
+  private void UpdateGoals(Goal goal)
+{
+    var game = GameManager.Instance?.CurrentGame;
+    if (game == null)
     {
-        var game = GameManager.Instance.CurrentGame;
-        string goalsDisplay = "Goals:\n" + string.Join("\n", 
-            game.Goals.Select(g => g.DisplayText + (g.IsComplete ? " ✓" : "")));
-        goalsText.text = goalsDisplay;
+        Debug.LogError("CurrentGame is null in UpdateGoals");
+        return;
     }
+    
+    if (game.Goals == null || game.Goals.Count == 0)
+    {
+        goalsText.text = "Goals:\nNone";
+        return;
+    }
+    
+    string goalsDisplay = "Goals:\n";
+    
+    foreach (var g in game.Goals)
+    {
+        string checkmark = g.IsComplete ? " ✓" : "";
+        goalsDisplay += $"{g.DisplayText}{checkmark}\n";
+    }
+    
+    goalsText.text = goalsDisplay;
+    
+    Debug.Log($"Goals updated: {goalsDisplay}");
+}
 
     private void UpdateDeckCount(Card card)
     {

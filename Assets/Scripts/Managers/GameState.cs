@@ -15,6 +15,9 @@ public class GameState
     // Constants
     public const int MaxHandSize = 7;
     
+    // NEW: Check if player must discard before drawing
+    public bool MustDiscard => Hand.Count > MaxHandSize;
+    
     // Events (for UI updates)
     public event Action<Card> OnCardDrawn;
     public event Action<Card> OnCardDiscarded;
@@ -45,6 +48,8 @@ public class GameState
 
     public bool DrawFromStock()
     {
+        if (MustDiscard) return false; // Can't draw if you need to discard first
+        
         var card = Deck.DrawFromStock();
         if (!card.HasValue) return false;
 
@@ -56,6 +61,8 @@ public class GameState
 
     public bool DrawFromDiscard()
     {
+        if (MustDiscard) return false; // Can't draw if you need to discard first
+        
         var card = Deck.DrawFromDiscard();
         if (!card.HasValue) return false;
 
@@ -68,11 +75,15 @@ public class GameState
     public bool DiscardCard(Card card)
     {
         if (!Hand.Contains(card)) return false;
-        if (Hand.Count <= MaxHandSize) return false; // Only discard if over hand limit
-
+        
         Hand.Remove(card);
         Deck.AddToDiscard(card);
-        MovesRemaining--;
+        
+        // Only decrement moves if we're completing a turn (discarding after drawing)
+        if (Hand.Count == MaxHandSize)
+        {
+            MovesRemaining--;
+        }
         
         OnCardDiscarded?.Invoke(card);
         OnHandChanged?.Invoke();
@@ -139,11 +150,11 @@ public class GameState
 
     public bool CanDiscard()
     {
-        return Hand.Count > MaxHandSize;
+        return Hand.Count >= 1;
     }
 
     public bool CanDraw()
     {
-        return MovesRemaining > 0 && (Deck.DrawPileCount > 0 || Deck.DiscardPileCount > 0);
+        return MovesRemaining > 0 && !MustDiscard && (Deck.DrawPileCount > 0 || Deck.DiscardPileCount > 0);
     }
 }

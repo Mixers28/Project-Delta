@@ -21,125 +21,144 @@ public class HandDisplay : MonoBehaviour
     }
 
     private void Start()
-{
-    StartCoroutine(WaitForGameManager());
-}
-
-private System.Collections.IEnumerator WaitForGameManager()
-{
-    Debug.Log("Waiting for GameManager...");
-    
-    // Wait until GameManager and CurrentGame exist
-    while (GameManager.Instance == null || GameManager.Instance.CurrentGame == null)
     {
-        yield return null; // Wait one frame
-    }
-    
-    Debug.Log("GameManager ready!");
-    Debug.Log($"Hand has {GameManager.Instance.CurrentGame.Hand.Count} cards");
-    
-    // Subscribe to game state events
-    GameManager.Instance.CurrentGame.OnHandChanged += RefreshHand;
-    
-    // Initial display
-    RefreshHand();
-}
-
- public void RefreshHand()
-{
-    Debug.Log("=== RefreshHand() called ===");
-    
-    // Clear existing displays
-    foreach (var display in cardDisplays)
-    {
-        Destroy(display.gameObject);
-    }
-    cardDisplays.Clear();
-    
-    if (GameManager.Instance?.CurrentGame == null)
-    {
-        Debug.LogError("GameManager or CurrentGame is NULL in RefreshHand!");
-        return;
+        StartCoroutine(WaitForGameManager());
     }
 
-    var hand = GameManager.Instance.CurrentGame.Hand;
-    Debug.Log($"Hand has {hand.Count} cards");
-    
-    if (cardPrefab == null)
+    private System.Collections.IEnumerator WaitForGameManager()
     {
-        Debug.LogError("cardPrefab is NULL!");
-        return;
-    }
-    
-    if (handContainer == null)
-    {
-        Debug.LogError("handContainer is NULL!");
-        return;
-    }
-    
-    Debug.Log($"About to create {hand.Count} card displays");
-
-    // Create new card displays
-    for (int i = 0; i < hand.Count; i++)
-    {
-        Card card = hand[i];
-        Debug.Log($"Creating card {i}: {card.Display}");
+        Debug.Log("Waiting for GameManager...");
         
-        GameObject cardObj = Instantiate(cardPrefab, handContainer);
-        Debug.Log($"Instantiated GameObject: {cardObj.name}");
-        
-        CardDisplay display = cardObj.GetComponent<CardDisplay>();
-        if (display == null)
+        // Wait until GameManager and CurrentGame exist
+        while (GameManager.Instance == null || GameManager.Instance.CurrentGame == null)
         {
-            Debug.LogError("CardDisplay component not found on instantiated object!");
-            continue;
+            yield return null;
         }
         
-        display.SetCard(card);
-        cardDisplays.Add(display);
-        Debug.Log($"Card {i} added successfully");
+        Debug.Log("GameManager ready!");
+        Debug.Log($"Hand has {GameManager.Instance.CurrentGame.Hand.Count} cards");
+        
+        // Subscribe to game state events
+        GameManager.Instance.CurrentGame.OnHandChanged += RefreshHand;
+        
+        // Initial display
+        RefreshHand();
     }
-    
-    Debug.Log($"Total cards created: {cardDisplays.Count}");
 
-    UpdatePatternPreview();
-}
+    public void RefreshHand()
+    {
+        Debug.Log("=== RefreshHand() called ===");
+        
+        // Clear existing displays
+        foreach (var display in cardDisplays)
+        {
+            Destroy(display.gameObject);
+        }
+        cardDisplays.Clear();
+        
+        if (GameManager.Instance?.CurrentGame == null)
+        {
+            Debug.LogError("GameManager or CurrentGame is NULL in RefreshHand!");
+            return;
+        }
+
+        var hand = GameManager.Instance.CurrentGame.Hand;
+        Debug.Log($"Hand has {hand.Count} cards");
+        
+        if (cardPrefab == null)
+        {
+            Debug.LogError("cardPrefab is NULL!");
+            return;
+        }
+        
+        if (handContainer == null)
+        {
+            Debug.LogError("handContainer is NULL!");
+            return;
+        }
+        
+        Debug.Log($"About to create {hand.Count} card displays");
+
+        // Create new card displays
+        for (int i = 0; i < hand.Count; i++)
+        {
+            Card card = hand[i];
+            Debug.Log($"Creating card {i}: {card.Display}");
+            
+            GameObject cardObj = Instantiate(cardPrefab, handContainer);
+            Debug.Log($"Instantiated GameObject: {cardObj.name}");
+            
+            CardDisplay display = cardObj.GetComponent<CardDisplay>();
+            if (display == null)
+            {
+                Debug.LogError("CardDisplay component not found on instantiated object!");
+                continue;
+            }
+            
+            display.SetCard(card);
+            cardDisplays.Add(display);
+            Debug.Log($"Card {i} added successfully");
+        }
+        
+        Debug.Log($"Total cards created: {cardDisplays.Count}");
+
+        UpdatePatternPreview();
+    }
 
     public void OnCardClicked(CardDisplay clickedCard)
     {
         // Toggle selection
         clickedCard.SetSelected(!clickedCard.IsSelected);
         UpdatePatternPreview();
+        
+        // Update button states
+        ActionButtons actionButtons = FindObjectOfType<ActionButtons>();
+        if (actionButtons != null)
+        {
+            actionButtons.UpdateButtonStates();
+        }
     }
 
     private void UpdatePatternPreview()
+{
+    var game = GameManager.Instance?.CurrentGame;
+    
+    // Check if must discard
+    if (game != null && game.MustDiscard)
     {
-        var selectedCards = cardDisplays
-            .Where(cd => cd.IsSelected)
-            .Select(cd => cd.CardData)
-            .ToList();
+        patternPreviewText.text = "⚠️ SELECT 1 CARD TO DISCARD ⚠️";
+        patternPreviewText.color = Color.red;
+        return;
+    }
+    
+    patternPreviewText.color = Color.yellow; // Reset to normal color
+    
+    var selectedCards = cardDisplays
+        .Where(cd => cd.IsSelected)
+        .Select(cd => cd.CardData)
+        .ToList();
 
-        if (selectedCards.Count == 0)
-        {
-            patternPreviewText.text = "Select cards to see patterns";
-            return;
-        }
+    if (selectedCards.Count == 0)
+    {
+        patternPreviewText.text = "Select cards to see patterns";
+        return;
+    }
 
-        var patterns = patternValidator.DetectPatterns(selectedCards);
+    var patterns = patternValidator.DetectPatterns(selectedCards);
 
-        if (patterns.Count == 0)
+    if (patterns.Count == 0)
+    {
+        patternPreviewText.text = $"Selected: {selectedCards.Count} cards - No valid pattern";
+    }
+    else
+    {
+        var best = patternValidator.GetBestPattern(selectedCards);
+        if (best.HasValue)
         {
-            patternPreviewText.text = $"Selected: {selectedCards.Count} cards - No valid pattern";
-        }
-        else
-        {
-            var best = patternValidator.GetBestPattern(selectedCards);
-            if (best.HasValue)
-            {
-                patternPreviewText.text = $"{best.Value.pattern.Name} - {best.Value.score} points";
-            }
+            patternPreviewText.text = $"{best.Value.pattern.Name} - {best.Value.score} points";
         }
     }
+}
 
     public List<int> GetSelectedIndices()
     {
@@ -161,6 +180,12 @@ private System.Collections.IEnumerator WaitForGameManager()
             display.SetSelected(false);
         }
         UpdatePatternPreview();
+        
+        // Update button states
+        ActionButtons actionButtons = FindObjectOfType<ActionButtons>();
+        if (actionButtons != null)
+        {
+            actionButtons.UpdateButtonStates();
+        }
     }
-    
 }
