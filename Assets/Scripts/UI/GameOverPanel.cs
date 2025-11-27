@@ -14,68 +14,83 @@ public class GameOverPanel : MonoBehaviour
     {
         Debug.Log("GameOverPanel Awake");
         
+        // If panel is not assigned, try to find it
+        if (panel == null)
+        {
+            Debug.LogWarning("Panel reference not assigned in inspector. Searching for panel...");
+            // Try to find a child panel
+            Transform panelTransform = transform.Find("Panel");
+            if (panelTransform != null)
+            {
+                panel = panelTransform.gameObject;
+                Debug.Log("✓ Found panel in children!");
+            }
+            else
+            {
+                Debug.LogError("✗ Panel not found! Make sure to assign it in the inspector or add a child GameObject named 'Panel'");
+            }
+        }
+        
+        Debug.Log($"Panel reference: {(panel != null ? "SET" : "NULL")}");
+        Debug.Log($"titleText reference: {(titleText != null ? "SET" : "NULL")}");
+        Debug.Log($"messageText reference: {(messageText != null ? "SET" : "NULL")}");
+        
         if (panel != null)
         {
+            // IMPORTANT: Make sure panel starts INACTIVE so it doesn't show on startup
             panel.SetActive(false);
-            Debug.Log("Panel set to inactive");
+            Debug.Log("Panel set to INACTIVE (will activate on game end)");
         }
         else
         {
-            Debug.LogError("Panel reference is NULL!");
-        }
-        
-        if (retryButton != null)
-        {
-            retryButton.onClick.AddListener(OnRetry);
-        }
-        
-        if (continueButton != null)
-        {
-            continueButton.onClick.AddListener(OnContinue);
+            Debug.LogWarning("Panel reference is NULL - GameOverPanel won't display!");
         }
     }
 
     private void Start()
     {
-        Debug.Log("GameOverPanel Start");
-        // Use polling for now to debug
-        InvokeRepeating(nameof(CheckWinLose), 0.5f, 0.5f);
-    }
-
-    private void Update()
-    {
-        // Manual triggers for testing
-        if (Input.GetKeyDown(KeyCode.W))
+        Debug.Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        Debug.Log("GameOverPanel.Start() CALLED - subscribing to GameManager.OnGameEnd");
+        
+        if (GameManager.Instance == null)
         {
-            Debug.Log("Manual WIN trigger");
-            ShowWin();
+            Debug.LogError("✗ CRITICAL: GameManager.Instance is NULL in Start()!");
+            Debug.LogError("  This means GameOverPanel cannot subscribe to events.");
+            Debug.LogError("  Check: Is GameManager spawning before GameOverPanel?");
+            return;
         }
         
-        if (Input.GetKeyDown(KeyCode.L))
+        Debug.Log("✓ GameManager.Instance is NOT null");
+        
+        // Subscribe to the OnGameEnd event
+        GameManager.Instance.OnGameEnd += HandleGameEnd;
+        
+        Debug.Log("✓ Successfully subscribed to GameManager.OnGameEnd");
+        Debug.Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    }
+
+    private void OnDestroy()
+    {
+        if (GameManager.Instance != null)
         {
-            Debug.Log("Manual LOSE trigger");
-            ShowLose();
+            GameManager.Instance.OnGameEnd -= HandleGameEnd;
         }
     }
 
-    private void CheckWinLose()
+    private void HandleGameEnd(bool isWin)
     {
-        var game = GameManager.Instance?.CurrentGame;
-        if (game == null) return;
+        Debug.Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        Debug.Log($"⚡ GameOverPanel.HandleGameEnd TRIGGERED ⚡");
+        Debug.Log($"  isWin: {isWin}");
+        Debug.Log($"  panel active state: {(panel != null ? panel.activeSelf : "UNKNOWN")}");
+        Debug.Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         
-        if (panel != null && panel.activeSelf) return;
-
-        bool isComplete = game.IsLevelComplete;
-        bool isFailed = game.IsLevelFailed;
-
-        if (isComplete)
+        if (isWin)
         {
-            Debug.Log("!!! WIN CONDITION MET !!!");
             ShowWin();
         }
-        else if (isFailed)
+        else
         {
-            Debug.Log("!!! LOSE CONDITION MET !!!");
             ShowLose();
         }
     }
@@ -90,13 +105,23 @@ public class GameOverPanel : MonoBehaviour
             return;
         }
         
-        panel.SetActive(true);
-        Debug.Log("Panel activated");
+        if (titleText == null || messageText == null)
+        {
+            Debug.LogError("titleText or messageText is NULL!");
+            return;
+        }
         
+        var game = GameManager.Instance?.CurrentGame;
+        if (game == null)
+        {
+            Debug.LogError("CurrentGame is NULL in ShowWin!");
+            return;
+        }
+        
+        // Set content
         titleText.text = "🎉 LEVEL COMPLETE! 🎉";
         titleText.color = Color.yellow;
         
-        var game = GameManager.Instance.CurrentGame;
         string goalsSummary = "";
         foreach (var goal in game.Goals)
         {
@@ -107,6 +132,17 @@ public class GameOverPanel : MonoBehaviour
         
         if (continueButton != null) continueButton.gameObject.SetActive(true);
         if (retryButton != null) retryButton.gameObject.SetActive(false);
+        
+        // Ensure panel is active
+        if (!panel.activeSelf)
+        {
+            panel.SetActive(true);
+            Debug.Log("Win panel activated");
+        }
+        else
+        {
+            Debug.Log("Win panel already active, content updated");
+        }
         
         StartCoroutine(CelebrationAnimation());
     }
@@ -121,13 +157,23 @@ public class GameOverPanel : MonoBehaviour
             return;
         }
         
-        panel.SetActive(true);
-        Debug.Log("Panel activated");
+        if (titleText == null || messageText == null)
+        {
+            Debug.LogError("titleText or messageText is NULL!");
+            return;
+        }
         
+        var game = GameManager.Instance?.CurrentGame;
+        if (game == null)
+        {
+            Debug.LogError("CurrentGame is NULL in ShowLose!");
+            return;
+        }
+        
+        // Set content
         titleText.text = "LEVEL FAILED";
         titleText.color = Color.red;
         
-        var game = GameManager.Instance.CurrentGame;
         string incompleteGoals = "";
         foreach (var goal in game.Goals)
         {
@@ -141,6 +187,17 @@ public class GameOverPanel : MonoBehaviour
         
         if (continueButton != null) continueButton.gameObject.SetActive(false);
         if (retryButton != null) retryButton.gameObject.SetActive(true);
+        
+        // Ensure panel is active
+        if (!panel.activeSelf)
+        {
+            panel.SetActive(true);
+            Debug.Log("Lose panel activated");
+        }
+        else
+        {
+            Debug.Log("Lose panel already active, content updated");
+        }
     }
 
     private System.Collections.IEnumerator CelebrationAnimation()
@@ -174,5 +231,20 @@ public class GameOverPanel : MonoBehaviour
         Debug.Log("Continue clicked");
         if (panel != null) panel.SetActive(false);
         GameManager.Instance.StartTestLevel();
+    }
+
+    // TEST: Press W key to manually test win screen
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.W))
+        {
+            Debug.Log("TEST: Manual WIN trigger (W pressed)");
+            HandleGameEnd(true);
+        }
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            Debug.Log("TEST: Manual LOSE trigger (L pressed)");
+            HandleGameEnd(false);
+        }
     }
 }

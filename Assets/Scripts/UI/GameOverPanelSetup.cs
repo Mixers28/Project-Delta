@@ -1,168 +1,19 @@
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
-using TextAlignmentOptions = TMPro.TextAlignmentOptions;
+using UnityEngine.UI;
 
-public class GameManager : MonoBehaviour
+/// <summary>
+/// Auto-creates the GameOverPanel UI hierarchy if it doesn't exist in the scene.
+/// This script ensures the win/loss screen displays properly without manual editor setup.
+/// </summary>
+public class GameOverPanelSetup : MonoBehaviour
 {
-    public static GameManager Instance { get; private set; }
-
-    public GameState CurrentGame { get; private set; }
-    public PatternValidator PatternValidator { get; private set; }
+    [SerializeField] private GameOverPanel gameOverPanelComponent;
     
-    // Events for UI listeners
-    public delegate void GameEndHandler(bool isWin);
-    public event GameEndHandler OnGameEnd;
-
     private void Awake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        Instance = this;
-        EnsureUISetup();
-    }
-
-    private void Start()
-    {
-        PatternValidator = new PatternValidator();
-        StartTestLevel();
-    }
-
-    // Test level configuration
-    public void StartTestLevel()
-    {
-        var goals = new List<Goal>
-        {
-            new Goal(Goal.GoalType.Pair, 2),
-            new Goal(Goal.GoalType.Run3, 1)
-        };
-
-        CurrentGame = new GameState(goals, totalMoves: 15);
-        
-        // Subscribe to events
-        CurrentGame.OnPatternPlayed += HandlePatternPlayed;
-        CurrentGame.OnGoalUpdated += HandleGoalUpdated;
-        CurrentGame.OnScoreChanged += HandleScoreChanged;
-
-        // Deal initial hand
-        CurrentGame.DealInitialHand();
-
-        Debug.Log("=== TEST LEVEL STARTED ===");
-        Debug.Log($"Goals: {string.Join(", ", goals.ConvertAll(g => g.DisplayText))}");
-        Debug.Log($"Moves: {CurrentGame.MovesRemaining}");
-        Debug.Log($"Hand: {string.Join(", ", CurrentGame.Hand.ConvertAll(c => c.Display))}");
-    }
-
-    public void TryPlayPattern(List<int> cardIndices)
-    {
-        if (CurrentGame == null) return;
-
-        var selectedCards = CurrentGame.GetSelectedCards(cardIndices);
-        if (selectedCards.Count == 0) return;
-
-        // Find best pattern
-        var bestPattern = PatternValidator.GetBestPattern(selectedCards);
-        if (!bestPattern.HasValue)
-        {
-            Debug.Log("No valid pattern detected");
-            return;
-        }
-
-        // Play pattern
-        bool success = CurrentGame.PlayPattern(selectedCards, bestPattern.Value.pattern);
-        if (!success)
-        {
-            Debug.LogError("Failed to play pattern");
-        }
-    }
-
-    public void DrawCard(bool fromDiscard = false)
-    {
-        if (CurrentGame == null) return;
-
-        bool success = fromDiscard ? CurrentGame.DrawFromDiscard() : CurrentGame.DrawFromStock();
-        
-        if (!success)
-        {
-            Debug.Log("Cannot draw card");
-        }
-    }
-
-    public void DiscardCard(int handIndex)
-    {
-        if (CurrentGame == null) return;
-        if (handIndex < 0 || handIndex >= CurrentGame.Hand.Count) return;
-
-        Card card = CurrentGame.Hand[handIndex];
-        bool success = CurrentGame.DiscardCard(card);
-
-        if (!success)
-        {
-            Debug.Log("Cannot discard card");
-        }
-    }
-
-    // Event handlers
-    private void HandlePatternPlayed(IPattern pattern, int score)
-    {
-        Debug.Log($"<color=green>Played {pattern.Name} for {score} points!</color>");
-    }
-
-    private void HandleGoalUpdated(Goal goal)
-    {
-        Debug.Log($"Goal updated: {goal.DisplayText}");
-        
-        if (goal.IsComplete)
-        {
-            Debug.Log($"<color=yellow>Goal complete: {goal.DisplayText}!</color>");
-        }
-
-        CheckLevelComplete();
-    }
-
-    private void HandleScoreChanged(int newScore)
-    {
-        Debug.Log($"Score: {newScore}");
-    }
-
-    private void CheckLevelComplete()
-    {
-        if (CurrentGame == null)
-        {
-            Debug.LogError("CheckLevelComplete: CurrentGame is NULL!");
-            return;
-        }
-        
-        Debug.Log($"CheckLevelComplete: IsLevelComplete={CurrentGame.IsLevelComplete}, IsLevelFailed={CurrentGame.IsLevelFailed}");
-        
-        if (CurrentGame.IsLevelComplete)
-        {
-            Debug.Log("<color=cyan>=== LEVEL COMPLETE! ===</color>");
-            Debug.Log($"Final Score: {CurrentGame.Score}");
-            OnGameEnd?.Invoke(true); // Notify listeners of WIN
-            Debug.Log("✓ OnGameEnd invoked for WIN");
-        }
-        else if (CurrentGame.IsLevelFailed)
-        {
-            Debug.Log("<color=red>=== LEVEL FAILED ===</color>");
-            Debug.Log("Out of moves!");
-            OnGameEnd?.Invoke(false); // Notify listeners of LOSS
-            Debug.Log("✓ OnGameEnd invoked for LOSS");
-        }
-        else
-        {
-            Debug.Log("CheckLevelComplete: Level is still in progress");
-        }
-    }
-
-    private void EnsureUISetup()
-    {
         Debug.Log("═══════════════════════════════════════════════════════");
-        Debug.Log("GameManager.EnsureUISetup() - Building UI hierarchy");
+        Debug.Log("GameOverPanelSetup.Awake() - Building UI hierarchy");
         
         // Find or create Canvas
         Canvas canvas = FindObjectOfType<Canvas>();
@@ -187,29 +38,38 @@ public class GameManager : MonoBehaviour
         
         // Find or create GameOverPanel GameObject
         Transform panelParent = canvas.transform.Find("GameOverPanel");
-        GameOverPanel gameOverPanelComponent = null;
         if (panelParent == null)
         {
             Debug.Log("  Creating GameOverPanel GameObject...");
             GameObject panelParentObj = new GameObject("GameOverPanel");
             panelParentObj.transform.SetParent(canvas.transform, false);
+            panelParent = panelParentObj.transform;
             
-            // IMPORTANT: Add RectTransform first before setting properties
-            RectTransform panelParentRect = panelParentObj.AddComponent<RectTransform>();
+            // Add RectTransform for positioning
+            RectTransform panelParentRect = panelParentObj.GetComponent<RectTransform>();
             panelParentRect.anchorMin = Vector2.zero;
             panelParentRect.anchorMax = Vector2.one;
             panelParentRect.offsetMin = Vector2.zero;
             panelParentRect.offsetMax = Vector2.zero;
             
-            panelParent = panelParentObj.transform;
-            
-            // DO NOT add GameOverPanel component yet - create children first
-            Debug.Log("  ✓ GameOverPanel parent created (component will be added after children)");
+            // Attach GameOverPanel script if not already attached
+            if (panelParentObj.GetComponent<GameOverPanel>() == null)
+            {
+                gameOverPanelComponent = panelParentObj.AddComponent<GameOverPanel>();
+                Debug.Log("  ✓ Attached GameOverPanel component");
+            }
+            else
+            {
+                gameOverPanelComponent = panelParentObj.GetComponent<GameOverPanel>();
+            }
         }
         else
         {
             Debug.Log("  ✓ GameOverPanel found in scene");
-            gameOverPanelComponent = panelParent.GetComponent<GameOverPanel>();
+            if (gameOverPanelComponent == null)
+            {
+                gameOverPanelComponent = panelParent.GetComponent<GameOverPanel>();
+            }
         }
         
         // Find or create Panel (the visual panel)
@@ -230,21 +90,12 @@ public class GameManager : MonoBehaviour
             Image panelImage = panelObj.AddComponent<Image>();
             panelImage.color = new Color(0, 0, 0, 0.8f);
             
-            // IMPORTANT: Start inactive so it doesn't show until game ends
-            panelObj.SetActive(false);
-            
-            Debug.Log("  ✓ Panel created (inactive)");
+            Debug.Log("  ✓ Panel created");
         }
         else
         {
             panelObj = panelTransform.gameObject;
             Debug.Log("  ✓ Panel found");
-            // Ensure it's inactive
-            if (panelObj.activeSelf)
-            {
-                panelObj.SetActive(false);
-                Debug.Log("  ✓ Panel set to inactive");
-            }
         }
         
         // Find or create TitleText
@@ -384,17 +235,6 @@ public class GameManager : MonoBehaviour
         }
         
         // Now assign all references to GameOverPanel component
-        // First, ADD the component if it doesn't exist (this happens AFTER all children are created)
-        if (gameOverPanelComponent == null)
-        {
-            gameOverPanelComponent = panelParent.gameObject.GetComponent<GameOverPanel>();
-            if (gameOverPanelComponent == null)
-            {
-                gameOverPanelComponent = panelParent.gameObject.AddComponent<GameOverPanel>();
-                Debug.Log("  ✓ Attached GameOverPanel component (after children created)");
-            }
-        }
-        
         if (gameOverPanelComponent != null)
         {
             Debug.Log("  Assigning references to GameOverPanel component...");
