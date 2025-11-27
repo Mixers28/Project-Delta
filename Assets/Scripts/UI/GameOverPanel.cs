@@ -4,69 +4,65 @@ using UnityEngine.UI;
 
 public class GameOverPanel : MonoBehaviour
 {
+    private const float CELEBRATION_DURATION = 0.5f;
+    private const float CELEBRATION_SCALE = 0.3f;
+
     [SerializeField] private GameObject panel;
     [SerializeField] private TextMeshProUGUI titleText;
     [SerializeField] private TextMeshProUGUI messageText;
     [SerializeField] private Button retryButton;
     [SerializeField] private Button continueButton;
 
+    private GameState cachedGameState;
+
     private void Awake()
     {
-        Debug.Log("GameOverPanel Awake");
-        
-        // If panel is not assigned, try to find it
-        if (panel == null)
+        if (!TryFindPanel())
         {
-            Debug.LogWarning("Panel reference not assigned in inspector. Searching for panel...");
-            // Try to find a child panel
-            Transform panelTransform = transform.Find("Panel");
-            if (panelTransform != null)
-            {
-                panel = panelTransform.gameObject;
-                Debug.Log("✓ Found panel in children!");
-            }
-            else
-            {
-                Debug.LogError("✗ Panel not found! Make sure to assign it in the inspector or add a child GameObject named 'Panel'");
-            }
+            Debug.LogError("GameOverPanel: Panel not found and could not be created!");
+            return;
         }
-        
-        Debug.Log($"Panel reference: {(panel != null ? "SET" : "NULL")}");
-        Debug.Log($"titleText reference: {(titleText != null ? "SET" : "NULL")}");
-        Debug.Log($"messageText reference: {(messageText != null ? "SET" : "NULL")}");
-        
-        if (panel != null)
+
+        panel.SetActive(false);
+    }
+
+    private bool TryFindPanel()
+    {
+        if (panel != null) return true;
+
+        Transform panelTransform = transform.Find("Panel");
+        if (panelTransform != null)
         {
-            // IMPORTANT: Make sure panel starts INACTIVE so it doesn't show on startup
-            panel.SetActive(false);
-            Debug.Log("Panel set to INACTIVE (will activate on game end)");
+            panel = panelTransform.gameObject;
+            return true;
         }
-        else
-        {
-            Debug.LogWarning("Panel reference is NULL - GameOverPanel won't display!");
-        }
+
+        return false;
     }
 
     private void Start()
     {
-        Debug.Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        Debug.Log("GameOverPanel.Start() CALLED - subscribing to GameManager.OnGameEnd");
-        
-        if (GameManager.Instance == null)
+        StartCoroutine(InitializePanel());
+    }
+
+    private System.Collections.IEnumerator InitializePanel()
+    {
+        while (GameManager.Instance == null || GameManager.Instance.CurrentGame == null)
         {
-            Debug.LogError("✗ CRITICAL: GameManager.Instance is NULL in Start()!");
-            Debug.LogError("  This means GameOverPanel cannot subscribe to events.");
-            Debug.LogError("  Check: Is GameManager spawning before GameOverPanel?");
-            return;
+            yield return null;
         }
-        
-        Debug.Log("✓ GameManager.Instance is NOT null");
-        
-        // Subscribe to the OnGameEnd event
+
+        cachedGameState = GameManager.Instance.CurrentGame;
         GameManager.Instance.OnGameEnd += HandleGameEnd;
-        
-        Debug.Log("✓ Successfully subscribed to GameManager.OnGameEnd");
-        Debug.Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+        if (retryButton != null)
+        {
+            retryButton.onClick.AddListener(OnRetry);
+        }
+        if (continueButton != null)
+        {
+            continueButton.onClick.AddListener(OnContinue);
+        }
     }
 
     private void OnDestroy()
@@ -79,12 +75,6 @@ public class GameOverPanel : MonoBehaviour
 
     private void HandleGameEnd(bool isWin)
     {
-        Debug.Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        Debug.Log($"⚡ GameOverPanel.HandleGameEnd TRIGGERED ⚡");
-        Debug.Log($"  isWin: {isWin}");
-        Debug.Log($"  panel active state: {(panel != null ? panel.activeSelf : "UNKNOWN")}");
-        Debug.Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        
         if (isWin)
         {
             ShowWin();
@@ -97,139 +87,119 @@ public class GameOverPanel : MonoBehaviour
 
     private void ShowWin()
     {
-        Debug.Log("ShowWin called");
-        
-        if (panel == null)
-        {
-            Debug.LogError("Cannot show win - panel is NULL!");
-            return;
-        }
-        
-        if (titleText == null || messageText == null)
-        {
-            Debug.LogError("titleText or messageText is NULL!");
-            return;
-        }
-        
-        var game = GameManager.Instance?.CurrentGame;
-        if (game == null)
-        {
-            Debug.LogError("CurrentGame is NULL in ShowWin!");
-            return;
-        }
-        
-        // Set content
+        if (!ValidateReferences()) return;
+
         titleText.text = "🎉 LEVEL COMPLETE! 🎉";
         titleText.color = Color.yellow;
-        
+
+        messageText.text = BuildWinMessage();
+
+        SetButtonVisibility(showContinue: true, showRetry: false);
+        ActivatePanel();
+        StartCoroutine(CelebrationAnimation());
+    }
+
+    private string BuildWinMessage()
+    {
         string goalsSummary = "";
-        foreach (var goal in game.Goals)
+        foreach (var goal in cachedGameState.Goals)
         {
             goalsSummary += $"✓ {goal.DisplayText}\n";
         }
-        
-        messageText.text = $"<size=48>Score: {game.Score}</size>\n\n{goalsSummary}\nMoves Remaining: {game.MovesRemaining}";
-        
-        if (continueButton != null) continueButton.gameObject.SetActive(true);
-        if (retryButton != null) retryButton.gameObject.SetActive(false);
-        
-        // Ensure panel is active
-        if (!panel.activeSelf)
-        {
-            panel.SetActive(true);
-            Debug.Log("Win panel activated");
-        }
-        else
-        {
-            Debug.Log("Win panel already active, content updated");
-        }
-        
-        StartCoroutine(CelebrationAnimation());
+
+        return $"<size=48>Score: {cachedGameState.Score}</size>\n\n{goalsSummary}\nMoves Remaining: {cachedGameState.MovesRemaining}";
     }
 
     private void ShowLose()
     {
-        Debug.Log("ShowLose called");
-        
-        if (panel == null)
-        {
-            Debug.LogError("Cannot show lose - panel is NULL!");
-            return;
-        }
-        
-        if (titleText == null || messageText == null)
-        {
-            Debug.LogError("titleText or messageText is NULL!");
-            return;
-        }
-        
-        var game = GameManager.Instance?.CurrentGame;
-        if (game == null)
-        {
-            Debug.LogError("CurrentGame is NULL in ShowLose!");
-            return;
-        }
-        
-        // Set content
+        if (!ValidateReferences()) return;
+
         titleText.text = "LEVEL FAILED";
         titleText.color = Color.red;
-        
+
+        messageText.text = BuildLoseMessage();
+
+        SetButtonVisibility(showContinue: false, showRetry: true);
+        ActivatePanel();
+    }
+
+    private string BuildLoseMessage()
+    {
         string incompleteGoals = "";
-        foreach (var goal in game.Goals)
+        foreach (var goal in cachedGameState.Goals)
         {
             if (!goal.IsComplete)
             {
                 incompleteGoals += $"✗ {goal.DisplayText}\n";
             }
         }
-        
-        messageText.text = $"Out of moves!\n\nIncomplete Goals:\n{incompleteGoals}\nFinal Score: {game.Score}";
-        
-        if (continueButton != null) continueButton.gameObject.SetActive(false);
-        if (retryButton != null) retryButton.gameObject.SetActive(true);
-        
-        // Ensure panel is active
-        if (!panel.activeSelf)
+
+        return $"Out of moves!\n\nIncomplete Goals:\n{incompleteGoals}\nFinal Score: {cachedGameState.Score}";
+    }
+
+    private bool ValidateReferences()
+    {
+        if (panel == null || titleText == null || messageText == null || cachedGameState == null)
+        {
+            Debug.LogError("GameOverPanel: Missing required references!");
+            return false;
+        }
+        return true;
+    }
+
+    private void SetButtonVisibility(bool showContinue, bool showRetry)
+    {
+        if (continueButton != null)
+        {
+            continueButton.gameObject.SetActive(showContinue);
+        }
+        if (retryButton != null)
+        {
+            retryButton.gameObject.SetActive(showRetry);
+        }
+    }
+
+    private void ActivatePanel()
+    {
+        if (panel != null && !panel.activeSelf)
         {
             panel.SetActive(true);
-            Debug.Log("Lose panel activated");
-        }
-        else
-        {
-            Debug.Log("Lose panel already active, content updated");
         }
     }
 
     private System.Collections.IEnumerator CelebrationAnimation()
     {
         if (titleText == null) yield break;
-        
-        float duration = 0.5f;
+
         float elapsed = 0f;
         Vector3 originalScale = titleText.transform.localScale;
-        
-        while (elapsed < duration)
+
+        while (elapsed < CELEBRATION_DURATION)
         {
             elapsed += Time.deltaTime;
-            float scale = 1f + Mathf.Sin(elapsed / duration * Mathf.PI) * 0.3f;
+            float scale = 1f + Mathf.Sin(elapsed / CELEBRATION_DURATION * Mathf.PI) * CELEBRATION_SCALE;
             titleText.transform.localScale = originalScale * scale;
             yield return null;
         }
-        
+
         titleText.transform.localScale = originalScale;
     }
 
     private void OnRetry()
     {
-        Debug.Log("Retry clicked");
-        if (panel != null) panel.SetActive(false);
-        GameManager.Instance.StartTestLevel();
+        if (panel != null)
+        {
+            panel.SetActive(false);
+        }
+        GameManager.Instance?.StartTestLevel();
     }
 
     private void OnContinue()
     {
-        Debug.Log("Continue clicked");
-        if (panel != null) panel.SetActive(false);
-        GameManager.Instance.StartTestLevel();
+        if (panel != null)
+        {
+            panel.SetActive(false);
+        }
+        GameManager.Instance?.StartTestLevel();
     }
 }

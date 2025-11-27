@@ -17,10 +17,14 @@ Assets/
 │   │   ├── GameState.cs (hand, score, goals, events)
 │   │   └── GameManager.cs (level config, orchestration)
 │   └── UI/
-│       ├── CardDisplay.cs (individual card rendering)
+│       ├── CardDisplay.cs (individual card rendering with sprite support)
+│       ├── CardSpriteLibrary.cs (ScriptableObject for card sprites)
 │       ├── HandDisplay.cs (manages 7 cards, selection)
 │       ├── GameHUD.cs (score/moves/goals/deck display)
+│       ├── GameOverPanel.cs (win/lose screen)
 │       └── ActionButtons.cs (draw/play/discard controls)
+├── Data/
+│   └── CardSpriteLibrary.asset (sprite mappings)
 └── Tests/
     ├── PlayModeTests.asmdef
     └── PatternTests.cs (20+ tests)

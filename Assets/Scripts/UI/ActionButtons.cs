@@ -4,29 +4,61 @@ using TMPro;
 
 public class ActionButtons : MonoBehaviour
 {
+    private static readonly Color HIGHLIGHT_COLOR = new(0.8f, 0.8f, 1f);
+    private static readonly Color PRESSED_COLOR = new(0.6f, 0.6f, 0.8f);
+    private static readonly Color SELECTED_COLOR = new(0.7f, 0.7f, 0.9f);
+    private static readonly Color DISABLED_COLOR = new(0.5f, 0.5f, 0.5f, 0.5f);
+    private static readonly Color DISCARD_WARNING_COLOR = new(1f, 0.5f, 0.5f);
+
     [SerializeField] private Button drawStockButton;
     [SerializeField] private Button drawDiscardButton;
     [SerializeField] private Button playPatternButton;
     [SerializeField] private Button discardButton;
     [SerializeField] private TextMeshProUGUI discardTopCardText;
 
+    private readonly PatternValidator patternValidator = new();
+    private GameState cachedGameState;
+
     private void Start()
+    {
+        SetupButtonListeners();
+        ApplyHoverEffects();
+        StartCoroutine(InitializeButtons());
+    }
+
+    private void SetupButtonListeners()
     {
         drawStockButton.onClick.AddListener(OnDrawStock);
         drawDiscardButton.onClick.AddListener(OnDrawDiscard);
         playPatternButton.onClick.AddListener(OnPlayPattern);
         discardButton.onClick.AddListener(OnDiscard);
+    }
 
-        // Add hover effects
+    private void ApplyHoverEffects()
+    {
         AddHoverEffect(drawStockButton);
         AddHoverEffect(drawDiscardButton);
         AddHoverEffect(playPatternButton);
         AddHoverEffect(discardButton);
+    }
 
-        if (GameManager.Instance?.CurrentGame != null)
+    private System.Collections.IEnumerator InitializeButtons()
+    {
+        while (GameManager.Instance == null || GameManager.Instance.CurrentGame == null)
         {
-            GameManager.Instance.CurrentGame.OnHandChanged += UpdateButtonStates;
-            UpdateButtonStates();
+            yield return null;
+        }
+
+        cachedGameState = GameManager.Instance.CurrentGame;
+        cachedGameState.OnHandChanged += UpdateButtonStates;
+        UpdateButtonStates();
+    }
+
+    private void OnDestroy()
+    {
+        if (cachedGameState != null)
+        {
+            cachedGameState.OnHandChanged -= UpdateButtonStates;
         }
     }
 
@@ -63,65 +95,63 @@ public class ActionButtons : MonoBehaviour
 
     public void UpdateButtonStates()
     {
-        var game = GameManager.Instance?.CurrentGame;
-        if (game == null) return;
-        
-        bool mustDiscard = game.MustDiscard;
-        
-        // Draw buttons - disabled if must discard
-        drawStockButton.interactable = !mustDiscard && game.CanDraw() && game.Deck.DrawPileCount > 0;
-        drawDiscardButton.interactable = !mustDiscard && game.CanDraw() && game.Deck.DiscardPileCount > 0;
+        if (cachedGameState == null) return;
 
-        // Update discard pile display
-        if (game.Deck.TopDiscard.HasValue)
-        {
-            discardTopCardText.text = game.Deck.TopDiscard.Value.Display;
-        }
-        else
-        {
-            discardTopCardText.text = "Empty";
-        }
+        bool mustDiscard = cachedGameState.MustDiscard;
 
-        // Play pattern button - can play patterns even if must discard
+        UpdateDrawButtons(mustDiscard);
+        UpdateDiscardPileDisplay();
+        UpdatePlayPatternButton();
+        UpdateDiscardButton(mustDiscard);
+    }
+
+    private void UpdateDrawButtons(bool mustDiscard)
+    {
+        drawStockButton.interactable = !mustDiscard && cachedGameState.CanDraw() && cachedGameState.Deck.DrawPileCount > 0;
+        drawDiscardButton.interactable = !mustDiscard && cachedGameState.CanDraw() && cachedGameState.Deck.DiscardPileCount > 0;
+    }
+
+    private void UpdateDiscardPileDisplay()
+    {
+        if (discardTopCardText == null) return;
+
+        discardTopCardText.text = cachedGameState.Deck.TopDiscard.HasValue
+            ? cachedGameState.Deck.TopDiscard.Value.Display
+            : "Empty";
+    }
+
+    private void UpdatePlayPatternButton()
+    {
         var selectedIndices = HandDisplay.Instance?.GetSelectedIndices();
         if (selectedIndices == null || selectedIndices.Count == 0)
         {
             playPatternButton.interactable = false;
-        }
-        else
-        {
-            var selectedCards = game.GetSelectedCards(selectedIndices);
-            var validator = new PatternValidator();
-            var hasPattern = validator.DetectPatterns(selectedCards).Count > 0;
-            playPatternButton.interactable = hasPattern;
+            return;
         }
 
-        // Discard button - enabled when at least one card selected
+        var selectedCards = cachedGameState.GetSelectedCards(selectedIndices);
+        var hasPattern = patternValidator.DetectPatterns(selectedCards).Count > 0;
+        playPatternButton.interactable = hasPattern;
+    }
+
+    private void UpdateDiscardButton(bool mustDiscard)
+    {
+        var selectedIndices = HandDisplay.Instance?.GetSelectedIndices();
         bool hasOneSelected = selectedIndices != null && selectedIndices.Count == 1;
-        discardButton.interactable = hasOneSelected && game.Hand.Count >= 1;
-        
-        // Highlight discard button if must discard
-        if (mustDiscard)
-        {
-            var colors = discardButton.colors;
-            colors.normalColor = new Color(1f, 0.5f, 0.5f); // Reddish to indicate required
-            discardButton.colors = colors;
-        }
-        else
-        {
-            var colors = discardButton.colors;
-            colors.normalColor = Color.white;
-            discardButton.colors = colors;
-        }
+        discardButton.interactable = hasOneSelected && cachedGameState.Hand.Count >= 1;
+
+        var colors = discardButton.colors;
+        colors.normalColor = mustDiscard ? DISCARD_WARNING_COLOR : Color.white;
+        discardButton.colors = colors;
     }
 
     private void AddHoverEffect(Button button)
     {
         var colors = button.colors;
-        colors.highlightedColor = new Color(0.8f, 0.8f, 1f); // Light blue
-        colors.pressedColor = new Color(0.6f, 0.6f, 0.8f); // Darker blue
-        colors.selectedColor = new Color(0.7f, 0.7f, 0.9f);
-        colors.disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.5f); // Grayed out
+        colors.highlightedColor = HIGHLIGHT_COLOR;
+        colors.pressedColor = PRESSED_COLOR;
+        colors.selectedColor = SELECTED_COLOR;
+        colors.disabledColor = DISABLED_COLOR;
         button.colors = colors;
     }
 }

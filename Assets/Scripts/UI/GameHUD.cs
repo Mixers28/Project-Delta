@@ -1,6 +1,5 @@
 using UnityEngine;
 using TMPro;
-using System.Linq;
 
 public class GameHUD : MonoBehaviour
 {
@@ -9,86 +8,125 @@ public class GameHUD : MonoBehaviour
     [SerializeField] private TextMeshProUGUI goalsText;
     [SerializeField] private TextMeshProUGUI deckCountText;
 
+    private GameState cachedGameState;
+
     private void Start()
-{
-    Debug.Log("=== GameHUD.Start() ===");
-    
-    // Check all references
-    if (scoreText == null) Debug.LogError("scoreText is NULL!");
-    if (movesText == null) Debug.LogError("movesText is NULL!");
-    if (goalsText == null) Debug.LogError("goalsText is NULL!");
-    if (deckCountText == null) Debug.LogError("deckCountText is NULL!");
-    
-    // Wait for GameManager
-    StartCoroutine(InitializeHUD());
-}
-
-private System.Collections.IEnumerator InitializeHUD()
-{
-    // Wait for GameManager to be ready
-    while (GameManager.Instance == null || GameManager.Instance.CurrentGame == null)
     {
-        yield return null;
-    }
-    
-    Debug.Log("GameManager ready, subscribing to events");
-    
-    var game = GameManager.Instance.CurrentGame;
-    game.OnScoreChanged += UpdateScore;
-    game.OnGoalUpdated += UpdateGoals;
-    game.OnHandChanged += UpdateMoves;
-    game.OnCardDrawn += UpdateDeckCount;
+        if (!ValidateReferences())
+        {
+            Debug.LogError("GameHUD: Missing required UI references!");
+            return;
+        }
 
-    // Force initial update
-    Debug.Log("Forcing initial updates...");
-    UpdateScore(game.Score);
-    UpdateMoves();
-    UpdateGoals(null);
-    UpdateDeckCount(default);
-}
+        StartCoroutine(InitializeHUD());
+    }
+
+    private bool ValidateReferences()
+    {
+        bool isValid = true;
+
+        if (scoreText == null)
+        {
+            Debug.LogError("GameHUD: scoreText is not assigned!");
+            isValid = false;
+        }
+        if (movesText == null)
+        {
+            Debug.LogError("GameHUD: movesText is not assigned!");
+            isValid = false;
+        }
+        if (goalsText == null)
+        {
+            Debug.LogError("GameHUD: goalsText is not assigned!");
+            isValid = false;
+        }
+        if (deckCountText == null)
+        {
+            Debug.LogError("GameHUD: deckCountText is not assigned!");
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    private System.Collections.IEnumerator InitializeHUD()
+    {
+        while (GameManager.Instance == null || GameManager.Instance.CurrentGame == null)
+        {
+            yield return null;
+        }
+
+        cachedGameState = GameManager.Instance.CurrentGame;
+
+        cachedGameState.OnScoreChanged += UpdateScore;
+        cachedGameState.OnGoalUpdated += UpdateGoals;
+        cachedGameState.OnHandChanged += UpdateMoves;
+        cachedGameState.OnCardDrawn += UpdateDeckCount;
+
+        RefreshAllDisplays();
+    }
+
+    private void OnDestroy()
+    {
+        if (cachedGameState != null)
+        {
+            cachedGameState.OnScoreChanged -= UpdateScore;
+            cachedGameState.OnGoalUpdated -= UpdateGoals;
+            cachedGameState.OnHandChanged -= UpdateMoves;
+            cachedGameState.OnCardDrawn -= UpdateDeckCount;
+        }
+    }
+
+    private void RefreshAllDisplays()
+    {
+        if (cachedGameState == null) return;
+
+        UpdateScore(cachedGameState.Score);
+        UpdateMoves();
+        UpdateGoals(null);
+        UpdateDeckCount(default);
+    }
 
     private void UpdateScore(int score)
     {
-        scoreText.text = $"Score: {score}";
+        if (scoreText != null)
+        {
+            scoreText.text = $"Score: {score}";
+        }
     }
 
     private void UpdateMoves()
     {
-        var game = GameManager.Instance.CurrentGame;
-        movesText.text = $"Moves: {game.MovesRemaining}";
+        if (cachedGameState == null || movesText == null) return;
+
+        movesText.text = $"Moves: {cachedGameState.MovesRemaining}";
     }
 
-  private void UpdateGoals(Goal goal)
-{
-    var game = GameManager.Instance?.CurrentGame;
-    if (game == null)
+    private void UpdateGoals(Goal goal)
     {
-        Debug.LogError("CurrentGame is null in UpdateGoals");
-        return;
+        if (cachedGameState == null || goalsText == null) return;
+
+        if (cachedGameState.Goals == null || cachedGameState.Goals.Count == 0)
+        {
+            goalsText.text = "Goals:\nNone";
+            return;
+        }
+
+        string goalsDisplay = "Goals:\n";
+
+        foreach (var g in cachedGameState.Goals)
+        {
+            string checkmark = g.IsComplete ? " ✓" : "";
+            goalsDisplay += $"{g.DisplayText}{checkmark}\n";
+        }
+
+        goalsText.text = goalsDisplay;
     }
-    
-    if (game.Goals == null || game.Goals.Count == 0)
-    {
-        goalsText.text = "Goals:\nNone";
-        return;
-    }
-    
-    string goalsDisplay = "Goals:\n";
-    
-    foreach (var g in game.Goals)
-    {
-        string checkmark = g.IsComplete ? " ✓" : "";
-        goalsDisplay += $"{g.DisplayText}{checkmark}\n";
-    }
-    
-    goalsText.text = goalsDisplay;
-    
-    Debug.Log($"Goals updated: {goalsDisplay}");
-}
 
     private void UpdateDeckCount(Card card)
     {
-        var game = GameManager.Instance.CurrentGame;
-        deckCountText.text = $"Deck: {game.Deck.DrawPileCount}\nDiscard: {game.Deck.DiscardPileCount}";
+        if (cachedGameState == null || deckCountText == null) return;
+
+        deckCountText.text = $"Deck: {cachedGameState.Deck.DrawPileCount}\nDiscard: {cachedGameState.Deck.DiscardPileCount}";
     }
 }
