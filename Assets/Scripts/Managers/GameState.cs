@@ -25,6 +25,7 @@ public class GameState
     public event Action<int> OnScoreChanged;
     public event Action<Goal> OnGoalUpdated;
     public event Action OnHandChanged;
+    public event Action OnMovesChanged;
 
     public bool IsLevelComplete => Goals.All(g => g.IsComplete);
     public bool IsLevelFailed => MovesRemaining <= 0 && !IsLevelComplete;
@@ -74,16 +75,17 @@ public class GameState
 
     public bool DiscardCard(Card card)
     {
+        Debug.Log($"DiscardCard called for {card.Display}. Hand count: {Hand.Count}");
+        
         if (!Hand.Contains(card)) return false;
         
         Hand.Remove(card);
         Deck.AddToDiscard(card);
         
-        // Only decrement moves if we're completing a turn (discarding after drawing)
-        if (Hand.Count == MaxHandSize)
-        {
-            MovesRemaining--;
-        }
+        // EVERY discard counts as a move
+        MovesRemaining--;
+        Debug.Log($"✓ Move consumed by discard! Moves remaining: {MovesRemaining}");
+        OnMovesChanged?.Invoke();
         
         OnCardDiscarded?.Invoke(card);
         OnHandChanged?.Invoke();

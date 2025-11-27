@@ -47,6 +47,7 @@ public class GameManager : MonoBehaviour
         CurrentGame.OnPatternPlayed += HandlePatternPlayed;
         CurrentGame.OnGoalUpdated += HandleGoalUpdated;
         CurrentGame.OnScoreChanged += HandleScoreChanged;
+        CurrentGame.OnMovesChanged += HandleMovesChanged;
 
         // Deal initial hand
         CurrentGame.DealInitialHand();
@@ -127,6 +128,12 @@ public class GameManager : MonoBehaviour
     private void HandleScoreChanged(int newScore)
     {
         Debug.Log($"Score: {newScore}");
+    }
+
+    private void HandleMovesChanged()
+    {
+        Debug.Log($"Moves remaining: {CurrentGame.MovesRemaining}");
+        CheckLevelComplete();
     }
 
     private void CheckLevelComplete()
