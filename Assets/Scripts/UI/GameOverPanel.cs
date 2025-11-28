@@ -17,30 +17,13 @@ public class GameOverPanel : MonoBehaviour
 
     private void Awake()
     {
-        // Make sure panel reference is resolved even if named differently in prefab
-        EnsureReferences();
-
-        if (panel == null)
+        if (panel == null || titleText == null || messageText == null || retryButton == null || continueButton == null)
         {
-            Debug.LogError("GameOverPanel: Panel not found and could not be created!");
+            Debug.LogError("GameOverPanel: References not set in inspector. Please assign panel, titleText, messageText, retryButton, and continueButton.");
             return;
         }
 
         panel.SetActive(false);
-    }
-
-    private bool TryFindPanel()
-    {
-        if (panel != null) return true;
-
-        Transform panelTransform = transform.Find("Panel") ?? transform.Find("PanelBackground");
-        if (panelTransform != null)
-        {
-            panel = panelTransform.gameObject;
-            return true;
-        }
-
-        return false;
     }
 
     private void Start()
@@ -78,7 +61,13 @@ public class GameOverPanel : MonoBehaviour
 
     private void HandleGameEnd(bool isWin)
     {
-        EnsureReferences();
+        if (GameManager.Instance != null && GameManager.Instance.CurrentGame != null)
+        {
+            cachedGameState = GameManager.Instance.CurrentGame;
+        }
+
+        Debug.Log($"GameOverPanel.HandleGameEnd isWin={isWin}");
+
         if (isWin)
         {
             ShowWin();
@@ -86,42 +75,6 @@ public class GameOverPanel : MonoBehaviour
         else
         {
             ShowLose();
-        }
-    }
-
-    private void EnsureReferences()
-    {
-        if (panel == null)
-        {
-            var p = transform.Find("Panel") ?? transform.Find("PanelBackground");
-            if (p != null) panel = p.gameObject;
-        }
-
-        if (panel != null)
-        {
-            if (titleText == null)
-            {
-                var t = panel.transform.Find("TitleText");
-                if (t != null) titleText = t.GetComponent<TextMeshProUGUI>();
-            }
-
-            if (messageText == null)
-            {
-                var t = panel.transform.Find("MessageText");
-                if (t != null) messageText = t.GetComponent<TextMeshProUGUI>();
-            }
-
-            if (retryButton == null)
-            {
-                var t = panel.transform.Find("RetryButton");
-                if (t != null) retryButton = t.GetComponent<Button>();
-            }
-
-            if (continueButton == null)
-            {
-                var t = panel.transform.Find("ContinueButton");
-                if (t != null) continueButton = t.GetComponent<Button>();
-            }
         }
     }
 
@@ -179,9 +132,7 @@ public class GameOverPanel : MonoBehaviour
 
     private bool ValidateReferences()
     {
-        EnsureReferences();
-
-        if (panel == null || titleText == null || messageText == null || cachedGameState == null)
+        if (panel == null || titleText == null || messageText == null || retryButton == null || continueButton == null || cachedGameState == null)
         {
             Debug.LogError("GameOverPanel: Missing required references!");
             return false;
@@ -205,7 +156,60 @@ public class GameOverPanel : MonoBehaviour
     {
         if (panel != null && !panel.activeSelf)
         {
+            // Make sure this overlay is on top of everything under the Canvas
+            transform.SetAsLastSibling();
+
             panel.SetActive(true);
+            panel.transform.SetAsLastSibling();
+
+            // Ensure the root and panel stretch full screen
+            var rootRt = GetComponent<RectTransform>();
+            if (rootRt != null)
+            {
+                rootRt.anchorMin = Vector2.zero;
+                rootRt.anchorMax = Vector2.one;
+                rootRt.offsetMin = Vector2.zero;
+                rootRt.offsetMax = Vector2.zero;
+                rootRt.localScale = Vector3.one;
+            }
+
+            var rt = panel.GetComponent<RectTransform>();
+            if (rt != null)
+            {
+                rt.anchorMin = Vector2.zero;
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero;
+                rt.offsetMax = Vector2.zero;
+                rt.localScale = Vector3.one;
+            }
+
+            // Ensure any CanvasGroup is visible and blocks raycasts
+            var cg = panel.GetComponent<CanvasGroup>();
+            if (cg != null)
+            {
+                cg.alpha = 1f;
+                cg.interactable = true;
+                cg.blocksRaycasts = true;
+            }
+
+            // If the panel background is fully transparent, give it a default overlay
+            var img = panel.GetComponent<Image>();
+            if (img != null && img.color.a <= 0.01f)
+            {
+                img.color = new Color(0f, 0f, 0f, 0.7f);
+            }
+
+            // Make sure text is visible (no zero alpha)
+            if (titleText != null)
+            {
+                var c = titleText.color;
+                titleText.color = new Color(c.r, c.g, c.b, 1f);
+            }
+            if (messageText != null)
+            {
+                var c = messageText.color;
+                messageText.color = new Color(c.r, c.g, c.b, 1f);
+            }
         }
     }
 

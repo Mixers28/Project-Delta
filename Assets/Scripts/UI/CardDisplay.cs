@@ -6,6 +6,7 @@ public class CardDisplay : MonoBehaviour
     private const float DEFAULT_CARD_WIDTH = 150f;
     private const float DEFAULT_CARD_HEIGHT = 210f;
     private const float DEFAULT_TEXT_SIZE = 48f;
+    private const float IMAGE_SCALE = 1f; // do not overscale sprites
 
     public Card CardData { get; private set; }
     public bool IsSelected { get; private set; }
@@ -19,7 +20,7 @@ public class CardDisplay : MonoBehaviour
     [SerializeField] private Color selectedColor = Color.yellow;
 
     [Header("Animation")]
-    [SerializeField] private float selectScale = 1.1f;
+    [SerializeField] private float selectScale = 1f; // disable bump on select
     [SerializeField] private float animationSpeed = 10f;
 
     private Button button;
@@ -57,18 +58,28 @@ public class CardDisplay : MonoBehaviour
             return;
         }
 
-        cardImage.preserveAspect = true;
+        EnsureImageLayout();
+        // Fill the rect instead of letterboxing (sprites already sized like cards)
+        cardImage.preserveAspect = false;
 
-        if (TrySetSpriteFromLibrary(card))
-        {
-            cardImage.enabled = true;
-        }
-        else
+        if (!TrySetSpriteFromLibrary(card))
         {
             UseFallbackDisplay(card);
         }
 
         SetCardSize();
+    }
+
+    private void EnsureImageLayout()
+    {
+        // Force the card image to stretch to the parent so sprites are visible
+        var rt = cardImage.rectTransform;
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.localScale = new Vector3(IMAGE_SCALE, IMAGE_SCALE, 1f);
     }
 
     private bool TryFindCardImage()
@@ -109,9 +120,24 @@ public class CardDisplay : MonoBehaviour
         }
 
         Sprite sprite = spriteLibrary.GetSprite(card);
+        if (sprite == null)
+        {
+            // For face cards and jokers, prefer asset placeholders over text
+            if (card.IsJoker && spriteLibrary.jokerSprite != null)
+            {
+                sprite = spriteLibrary.jokerSprite;
+            }
+            else if ((card.IsFaceCard || card.IsJoker) && spriteLibrary.cardBack != null)
+            {
+                sprite = spriteLibrary.cardBack;
+            }
+        }
+
         if (sprite != null)
         {
             cardImage.sprite = sprite;
+            cardImage.enabled = true;
+            DisableFallbackText();
             return true;
         }
 
@@ -130,21 +156,17 @@ public class CardDisplay : MonoBehaviour
 
     private void UseFallbackDisplay(Card card)
     {
-        // Create text as fallback if no sprites
-        // This uses the old text display method
+        // Create text as fallback if no sprites are available
         cardImage.sprite = null;
         cardImage.enabled = false;
         
-        // Try to find or create TextMeshPro component
         var text = GetComponentInChildren<TMPro.TextMeshProUGUI>();
         if (text == null)
         {
-            // Create text child if it doesn't exist
             GameObject textObj = new GameObject("CardText");
             textObj.transform.SetParent(transform);
             text = textObj.AddComponent<TMPro.TextMeshProUGUI>();
             
-            // Configure text
             RectTransform textRT = textObj.GetComponent<RectTransform>();
             textRT.anchorMin = Vector2.zero;
             textRT.anchorMax = Vector2.one;
@@ -160,6 +182,15 @@ public class CardDisplay : MonoBehaviour
         text.enabled = true;
     }
 
+    private void DisableFallbackText()
+    {
+        var text = GetComponentInChildren<TMPro.TextMeshProUGUI>();
+        if (text != null)
+        {
+            text.enabled = false;
+        }
+    }
+
     public void SetSelected(bool selected)
     {
         IsSelected = selected;
@@ -172,6 +203,12 @@ public class CardDisplay : MonoBehaviour
         
         // Update scale target for animation
         targetScale = selected ? normalScale * selectScale : normalScale;
+
+        // If deselected, snap back in case it was left enlarged
+        if (!selected)
+        {
+            transform.localScale = targetScale;
+        }
     }
 
     private void OnClicked()
