@@ -17,7 +17,10 @@ public class GameOverPanel : MonoBehaviour
 
     private void Awake()
     {
-        if (!TryFindPanel())
+        // Make sure panel reference is resolved even if named differently in prefab
+        EnsureReferences();
+
+        if (panel == null)
         {
             Debug.LogError("GameOverPanel: Panel not found and could not be created!");
             return;
@@ -30,7 +33,7 @@ public class GameOverPanel : MonoBehaviour
     {
         if (panel != null) return true;
 
-        Transform panelTransform = transform.Find("Panel");
+        Transform panelTransform = transform.Find("Panel") ?? transform.Find("PanelBackground");
         if (panelTransform != null)
         {
             panel = panelTransform.gameObject;
@@ -75,6 +78,7 @@ public class GameOverPanel : MonoBehaviour
 
     private void HandleGameEnd(bool isWin)
     {
+        EnsureReferences();
         if (isWin)
         {
             ShowWin();
@@ -82,6 +86,42 @@ public class GameOverPanel : MonoBehaviour
         else
         {
             ShowLose();
+        }
+    }
+
+    private void EnsureReferences()
+    {
+        if (panel == null)
+        {
+            var p = transform.Find("Panel") ?? transform.Find("PanelBackground");
+            if (p != null) panel = p.gameObject;
+        }
+
+        if (panel != null)
+        {
+            if (titleText == null)
+            {
+                var t = panel.transform.Find("TitleText");
+                if (t != null) titleText = t.GetComponent<TextMeshProUGUI>();
+            }
+
+            if (messageText == null)
+            {
+                var t = panel.transform.Find("MessageText");
+                if (t != null) messageText = t.GetComponent<TextMeshProUGUI>();
+            }
+
+            if (retryButton == null)
+            {
+                var t = panel.transform.Find("RetryButton");
+                if (t != null) retryButton = t.GetComponent<Button>();
+            }
+
+            if (continueButton == null)
+            {
+                var t = panel.transform.Find("ContinueButton");
+                if (t != null) continueButton = t.GetComponent<Button>();
+            }
         }
     }
 
@@ -139,6 +179,8 @@ public class GameOverPanel : MonoBehaviour
 
     private bool ValidateReferences()
     {
+        EnsureReferences();
+
         if (panel == null || titleText == null || messageText == null || cachedGameState == null)
         {
             Debug.LogError("GameOverPanel: Missing required references!");

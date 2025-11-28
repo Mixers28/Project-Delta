@@ -60,7 +60,7 @@ public class GameHUD : MonoBehaviour
 
         cachedGameState.OnScoreChanged += UpdateScore;
         cachedGameState.OnGoalUpdated += UpdateGoals;
-        cachedGameState.OnHandChanged += UpdateMoves;
+        cachedGameState.OnMovesChanged += UpdateMoves;
         cachedGameState.OnCardDrawn += UpdateDeckCount;
 
         RefreshAllDisplays();
@@ -72,7 +72,7 @@ public class GameHUD : MonoBehaviour
         {
             cachedGameState.OnScoreChanged -= UpdateScore;
             cachedGameState.OnGoalUpdated -= UpdateGoals;
-            cachedGameState.OnHandChanged -= UpdateMoves;
+            cachedGameState.OnMovesChanged -= UpdateMoves;
             cachedGameState.OnCardDrawn -= UpdateDeckCount;
         }
     }

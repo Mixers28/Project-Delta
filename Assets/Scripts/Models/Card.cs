@@ -32,40 +32,41 @@ public struct Card
     public bool IsJoker => rank == Rank.Joker;
     public bool IsFaceCard => rank >= Rank.Jack && rank <= Rank.King;
 
-  public string Symbol
-{
-    get
+    public string Symbol
     {
-        switch (suit)
+        get
         {
-            case Suit.Hearts: return "♥";
-            case Suit.Diamonds: return "♦";
-            case Suit.Clubs: return "♣";
-            case Suit.Spades: return "♠";
-            case Suit.Joker: return "★"; // Changed from 🃏
-            default: return "";
+            // Use ASCII-friendly markers to keep text fallbacks readable
+            return suit switch
+            {
+                Suit.Hearts => "H",
+                Suit.Diamonds => "D",
+                Suit.Clubs => "C",
+                Suit.Spades => "S",
+                Suit.Joker => "?",
+                _ => string.Empty
+            };
         }
     }
-}
 
-public string Display
-{
-    get
+    public string Display
     {
-        if (IsJoker) return "★JKR"; // Changed from 🃏
-        
-        string rankStr = rank switch
+        get
         {
-            Rank.Ace => "A",
-            Rank.Jack => "J",
-            Rank.Queen => "Q",
-            Rank.King => "K",
-            _ => ((int)rank).ToString()
-        };
-        
-        return $"{rankStr}{Symbol}";
+            if (IsJoker) return "?JKR";
+            
+            string rankStr = rank switch
+            {
+                Rank.Ace => "A",
+                Rank.Jack => "J",
+                Rank.Queen => "Q",
+                Rank.King => "K",
+                _ => ((int)rank).ToString()
+            };
+            
+            return $"{rankStr}{Symbol}";
+        }
     }
-}
 
     public override bool Equals(object obj)
     {

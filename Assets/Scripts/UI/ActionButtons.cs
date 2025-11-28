@@ -18,6 +18,7 @@ public class ActionButtons : MonoBehaviour
 
     private readonly PatternValidator patternValidator = new();
     private GameState cachedGameState;
+    private bool inputLocked;
 
     private void Start()
     {
@@ -85,9 +86,9 @@ public class ActionButtons : MonoBehaviour
     private void OnDiscard()
     {
         var selectedIndices = HandDisplay.Instance.GetSelectedIndices();
-        if (selectedIndices.Count == 1)
+        if (selectedIndices.Count >= 1 && selectedIndices.Count <= 5)
         {
-            GameManager.Instance.DiscardCard(selectedIndices[0]);
+            GameManager.Instance.DiscardCards(selectedIndices);
             HandDisplay.Instance.ClearSelection();
             UpdateButtonStates();
         }
@@ -97,12 +98,27 @@ public class ActionButtons : MonoBehaviour
     {
         if (cachedGameState == null) return;
 
+        if (inputLocked)
+        {
+            drawStockButton.interactable = false;
+            drawDiscardButton.interactable = false;
+            playPatternButton.interactable = false;
+            discardButton.interactable = false;
+            return;
+        }
+
         bool mustDiscard = cachedGameState.MustDiscard;
 
         UpdateDrawButtons(mustDiscard);
         UpdateDiscardPileDisplay();
         UpdatePlayPatternButton();
         UpdateDiscardButton(mustDiscard);
+    }
+
+    public void SetInputEnabled(bool enabled)
+    {
+        inputLocked = !enabled;
+        UpdateButtonStates();
     }
 
     private void UpdateDrawButtons(bool mustDiscard)
@@ -131,14 +147,15 @@ public class ActionButtons : MonoBehaviour
 
         var selectedCards = cachedGameState.GetSelectedCards(selectedIndices);
         var hasPattern = patternValidator.DetectPatterns(selectedCards).Count > 0;
-        playPatternButton.interactable = hasPattern;
+        playPatternButton.interactable = hasPattern && cachedGameState.MovesRemaining > 0;
     }
 
     private void UpdateDiscardButton(bool mustDiscard)
     {
         var selectedIndices = HandDisplay.Instance?.GetSelectedIndices();
-        bool hasOneSelected = selectedIndices != null && selectedIndices.Count == 1;
-        discardButton.interactable = hasOneSelected && cachedGameState.Hand.Count >= 1;
+        int selectedCount = selectedIndices?.Count ?? 0;
+        bool validSelection = selectedCount >= 1 && selectedCount <= 5;
+        discardButton.interactable = validSelection && cachedGameState.Hand.Count >= selectedCount && cachedGameState.MovesRemaining > 0;
 
         var colors = discardButton.colors;
         colors.normalColor = mustDiscard ? DISCARD_WARNING_COLOR : Color.white;

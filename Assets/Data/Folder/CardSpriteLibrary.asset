@@ -123,7 +123,7 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: bcce26fb26f9bf6468680c97e42852c5, type: 3}
   - suit: 2
     rank: 11
-    sprite: {fileID: 21300000, guid: bcce26fb26f9bf6468680c97e42852c5, type: 3}
+    sprite: {fileID: 21300000, guid: 76c82ac319f959947a5b3b312ff0a139, type: 3}
   - suit: 2
     rank: 12
     sprite: {fileID: 21300000, guid: 2fabccb904506934eb2eb3d77bb27361, type: 3}
@@ -176,4 +176,4 @@ MonoBehaviour:
     rank: 0
     sprite: {fileID: 21300000, guid: df0c34ff1475d7944b260c474f6e90ca, type: 3}
   cardBack: {fileID: 0}
-  jokerSprite: {fileID: 0}
+  jokerSprite: {fileID: 21300000, guid: df0c34ff1475d7944b260c474f6e90ca, type: 3}

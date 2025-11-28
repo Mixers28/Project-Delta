@@ -65,8 +65,11 @@ public class Deck
     {
         if (discardPile.Count == 0) return null;
         
-        Card card = discardPile[^1];
-        discardPile.RemoveAt(discardPile.Count - 1);
+        // Pull a random card from the discard pile (not just the top)
+        System.Random rng = new System.Random();
+        int index = rng.Next(discardPile.Count);
+        Card card = discardPile[index];
+        discardPile.RemoveAt(index);
         return card;
     }
 

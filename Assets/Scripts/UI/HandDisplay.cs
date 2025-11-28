@@ -17,6 +17,7 @@ public class HandDisplay : MonoBehaviour
     private readonly List<CardDisplay> cardDisplays = new();
     private readonly PatternValidator patternValidator = new();
     private ActionButtons cachedActionButtons;
+    private bool inputLocked;
 
     private void Awake()
     {
@@ -97,6 +98,8 @@ public class HandDisplay : MonoBehaviour
 
     public void OnCardClicked(CardDisplay clickedCard)
     {
+        if (inputLocked) return;
+
         clickedCard.SetSelected(!clickedCard.IsSelected);
         UpdatePatternPreview();
         UpdateActionButtons();
@@ -176,5 +179,14 @@ public class HandDisplay : MonoBehaviour
         }
         UpdatePatternPreview();
         UpdateActionButtons();
+    }
+
+    public void SetInputEnabled(bool enabled)
+    {
+        inputLocked = !enabled;
+        if (inputLocked)
+        {
+            ClearSelection();
+        }
     }
 }

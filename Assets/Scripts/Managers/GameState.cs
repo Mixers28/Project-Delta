@@ -43,13 +43,14 @@ public class GameState
     {
         for (int i = 0; i < MaxHandSize; i++)
         {
-            DrawFromStock();
+            DrawFromStock(consumeMove: false);
         }
     }
 
-    public bool DrawFromStock()
+    public bool DrawFromStock(bool consumeMove = true)
     {
         if (MustDiscard) return false; // Can't draw if you need to discard first
+        if (consumeMove && MovesRemaining <= 0) return false;
         
         var card = Deck.DrawFromStock();
         if (!card.HasValue) return false;
@@ -57,12 +58,13 @@ public class GameState
         Hand.Add(card.Value);
         OnCardDrawn?.Invoke(card.Value);
         OnHandChanged?.Invoke();
-        return true;
+        return consumeMove ? SpendMoves(1) : true;
     }
 
-    public bool DrawFromDiscard()
+    public bool DrawFromDiscard(bool consumeMove = true)
     {
         if (MustDiscard) return false; // Can't draw if you need to discard first
+        if (consumeMove && MovesRemaining <= 0) return false;
         
         var card = Deck.DrawFromDiscard();
         if (!card.HasValue) return false;
@@ -70,30 +72,76 @@ public class GameState
         Hand.Add(card.Value);
         OnCardDrawn?.Invoke(card.Value);
         OnHandChanged?.Invoke();
-        return true;
+        return consumeMove ? SpendMoves(1) : true;
+    }
+
+    // Draw multiple cards in a single action for one move cost
+    public bool DrawCards(int count, bool fromDiscard = false)
+    {
+        if (count <= 0) return false;
+        if (MovesRemaining <= 0) return false;
+        if (MustDiscard) return false;
+
+        int drawn = 0;
+        for (int i = 0; i < count; i++)
+        {
+            if (MustDiscard) break;
+            bool ok = fromDiscard
+                ? DrawFromDiscard(consumeMove: false)
+                : DrawFromStock(consumeMove: false);
+            if (!ok) break;
+            drawn++;
+        }
+
+        if (drawn == 0) return false;
+        return SpendMoves(1);
     }
 
     public bool DiscardCard(Card card)
     {
-        Debug.Log($"DiscardCard called for {card.Display}. Hand count: {Hand.Count}");
-        
         if (!Hand.Contains(card)) return false;
-        
-        Hand.Remove(card);
-        Deck.AddToDiscard(card);
-        
-        // EVERY discard counts as a move
-        MovesRemaining--;
-        Debug.Log($"✓ Move consumed by discard! Moves remaining: {MovesRemaining}");
-        OnMovesChanged?.Invoke();
-        
-        OnCardDiscarded?.Invoke(card);
+        return DiscardCards(new List<Card> { card });
+    }
+
+    public bool DiscardCards(List<Card> cards)
+    {
+        if (cards == null || cards.Count == 0) return false;
+        if (cards.Count > 5)
+        {
+            Debug.LogWarning("Cannot discard more than 5 cards at once.");
+            return false;
+        }
+
+        if (!cards.All(c => Hand.Contains(c))) return false;
+
+        int moveCost = CalculateDiscardMoveCost(cards.Count);
+        if (!SpendMoves(moveCost))
+        {
+            Debug.LogWarning("Not enough moves to discard.");
+            return false;
+        }
+
+        foreach (var card in cards)
+        {
+            Hand.Remove(card);
+            Deck.AddToDiscard(card);
+            OnCardDiscarded?.Invoke(card);
+        }
+
         OnHandChanged?.Invoke();
         return true;
     }
 
+    private int CalculateDiscardMoveCost(int discardCount)
+    {
+        discardCount = Mathf.Clamp(discardCount, 1, 5);
+        return (discardCount + 1) / 2; // ceil(discardCount/2)
+    }
+
     public bool PlayPattern(List<Card> cards, IPattern pattern)
     {
+        if (MovesRemaining <= 0) return false;
+
         // Validate pattern
         if (!pattern.Validate(cards)) return false;
 
@@ -118,7 +166,7 @@ public class GameState
         OnScoreChanged?.Invoke(Score);
         OnHandChanged?.Invoke();
 
-        return true;
+        return SpendMoves(1);
     }
 
     private void UpdateGoals(IPattern pattern, int points)
@@ -152,11 +200,21 @@ public class GameState
 
     public bool CanDiscard()
     {
-        return Hand.Count >= 1;
+        return Hand.Count >= 1 && MovesRemaining > 0;
     }
 
     public bool CanDraw()
     {
         return MovesRemaining > 0 && !MustDiscard && (Deck.DrawPileCount > 0 || Deck.DiscardPileCount > 0);
+    }
+
+    private bool SpendMoves(int amount)
+    {
+        if (amount <= 0) return true;
+        if (MovesRemaining < amount) return false;
+
+        MovesRemaining -= amount;
+        OnMovesChanged?.Invoke();
+        return true;
     }
 }
