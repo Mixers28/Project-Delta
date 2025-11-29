@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using System;
 
 public class GameHUD : MonoBehaviour
 {
@@ -19,6 +20,14 @@ public class GameHUD : MonoBehaviour
         }
 
         StartCoroutine(InitializeHUD());
+    }
+
+    private void OnEnable()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameStarted += HandleGameStarted;
+        }
     }
 
     private bool ValidateReferences()
@@ -56,18 +65,20 @@ public class GameHUD : MonoBehaviour
             yield return null;
         }
 
-        cachedGameState = GameManager.Instance.CurrentGame;
+        // Subscribe once the GameManager exists (covers the case OnEnable ran before Awake)
+        GameManager.Instance.OnGameStarted -= HandleGameStarted;
+        GameManager.Instance.OnGameStarted += HandleGameStarted;
 
-        cachedGameState.OnScoreChanged += UpdateScore;
-        cachedGameState.OnGoalUpdated += UpdateGoals;
-        cachedGameState.OnMovesChanged += UpdateMoves;
-        cachedGameState.OnCardDrawn += UpdateDeckCount;
-
-        RefreshAllDisplays();
+        HandleGameStarted(GameManager.Instance.CurrentGame);
     }
 
     private void OnDestroy()
     {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameStarted -= HandleGameStarted;
+        }
+
         if (cachedGameState != null)
         {
             cachedGameState.OnScoreChanged -= UpdateScore;
@@ -112,12 +123,20 @@ public class GameHUD : MonoBehaviour
             return;
         }
 
-        string goalsDisplay = "Goals:\n";
+        // Show only stage info (if present) and goals; hide level/deck labels to declutter overlay
+        string stageLabel = cachedGameState.LevelName;
+        int stageIndex = stageLabel.LastIndexOf("Stage", StringComparison.OrdinalIgnoreCase);
+        if (stageIndex >= 0)
+        {
+            stageLabel = stageLabel.Substring(stageIndex).Trim();
+        }
+
+        string goalsDisplay = $"Stage: {stageLabel}\nGoals:\n";
 
         foreach (var g in cachedGameState.Goals)
         {
-            string checkmark = g.IsComplete ? " ✓" : "";
-            goalsDisplay += $"{g.DisplayText}{checkmark}\n";
+            string status = g.IsComplete ? " [done]" : "";
+            goalsDisplay += $"{g.DisplayText}{status}\n";
         }
 
         goalsText.text = goalsDisplay;
@@ -128,5 +147,28 @@ public class GameHUD : MonoBehaviour
         if (cachedGameState == null || deckCountText == null) return;
 
         deckCountText.text = $"Deck: {cachedGameState.Deck.DrawPileCount}\nDiscard: {cachedGameState.Deck.DiscardPileCount}";
+    }
+
+    private void HandleGameStarted(GameState game)
+    {
+        if (cachedGameState != null)
+        {
+            cachedGameState.OnScoreChanged -= UpdateScore;
+            cachedGameState.OnGoalUpdated -= UpdateGoals;
+            cachedGameState.OnMovesChanged -= UpdateMoves;
+            cachedGameState.OnCardDrawn -= UpdateDeckCount;
+        }
+
+        cachedGameState = game;
+
+        Debug.Log("HUD rebinding to new GameState");
+        Debug.Log($"HUD Level: {cachedGameState.LevelName} | Deck: {cachedGameState.DeckDescription}");
+
+        cachedGameState.OnScoreChanged += UpdateScore;
+        cachedGameState.OnGoalUpdated += UpdateGoals;
+        cachedGameState.OnMovesChanged += UpdateMoves;
+        cachedGameState.OnCardDrawn += UpdateDeckCount;
+
+        RefreshAllDisplays();
     }
 }

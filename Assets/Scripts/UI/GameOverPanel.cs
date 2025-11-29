@@ -14,16 +14,55 @@ public class GameOverPanel : MonoBehaviour
     [SerializeField] private Button continueButton;
 
     private GameState cachedGameState;
+    private bool isConfigured;
 
-    private void Awake()
+    public void Configure()
     {
-        if (panel == null || titleText == null || messageText == null || retryButton == null || continueButton == null)
+        if (isConfigured)
         {
-            Debug.LogError("GameOverPanel: References not set in inspector. Please assign panel, titleText, messageText, retryButton, and continueButton.");
             return;
         }
 
+        ValidateSerializedField(panel, nameof(panel));
+        ValidateSerializedField(titleText, nameof(titleText));
+        ValidateSerializedField(messageText, nameof(messageText));
+        ValidateSerializedField(retryButton, nameof(retryButton));
+        ValidateSerializedField(continueButton, nameof(continueButton));
+
+        retryButton.onClick.AddListener(OnRetry);
+        continueButton.onClick.AddListener(OnContinue);
+
         panel.SetActive(false);
+
+        isConfigured = true;
+    }
+
+    private void Awake()
+    {
+        try
+        {
+            Configure();
+        }
+        catch (MissingReferenceException ex)
+        {
+            Debug.LogError($"GameOverPanel: {ex.Message}");
+        }
+    }
+
+    private void OnEnable()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameStarted += HandleGameStarted;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameStarted -= HandleGameStarted;
+        }
     }
 
     private void Start()
@@ -40,22 +79,28 @@ public class GameOverPanel : MonoBehaviour
 
         cachedGameState = GameManager.Instance.CurrentGame;
         GameManager.Instance.OnGameEnd += HandleGameEnd;
-
-        if (retryButton != null)
-        {
-            retryButton.onClick.AddListener(OnRetry);
-        }
-        if (continueButton != null)
-        {
-            continueButton.onClick.AddListener(OnContinue);
-        }
     }
 
     private void OnDestroy()
     {
+        if (retryButton != null)
+        {
+            retryButton.onClick.RemoveListener(OnRetry);
+        }
+
+        if (continueButton != null)
+        {
+            continueButton.onClick.RemoveListener(OnContinue);
+        }
+
         if (GameManager.Instance != null)
         {
             GameManager.Instance.OnGameEnd -= HandleGameEnd;
+        }
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameStarted -= HandleGameStarted;
         }
     }
 
@@ -82,7 +127,7 @@ public class GameOverPanel : MonoBehaviour
     {
         if (!ValidateReferences()) return;
 
-        titleText.text = "🎉 LEVEL COMPLETE! 🎉";
+        titleText.text = "LEVEL COMPLETE!";
         titleText.color = Color.yellow;
 
         messageText.text = BuildWinMessage();
@@ -97,7 +142,7 @@ public class GameOverPanel : MonoBehaviour
         string goalsSummary = "";
         foreach (var goal in cachedGameState.Goals)
         {
-            goalsSummary += $"✓ {goal.DisplayText}\n";
+            goalsSummary += $"- {goal.DisplayText}\n";
         }
 
         return $"<size=48>Score: {cachedGameState.Score}</size>\n\n{goalsSummary}\nMoves Remaining: {cachedGameState.MovesRemaining}";
@@ -123,7 +168,7 @@ public class GameOverPanel : MonoBehaviour
         {
             if (!goal.IsComplete)
             {
-                incompleteGoals += $"✗ {goal.DisplayText}\n";
+                incompleteGoals += $"- {goal.DisplayText}\n";
             }
         }
 
@@ -154,11 +199,13 @@ public class GameOverPanel : MonoBehaviour
 
     private void ActivatePanel()
     {
-        if (panel != null && !panel.activeSelf)
+        if (panel != null)
         {
             // Make sure this overlay is on top of everything under the Canvas
             transform.SetAsLastSibling();
 
+            SetCanvasGroup(panel, true);
+            SetCanvasGroup(gameObject, true);
             panel.SetActive(true);
             panel.transform.SetAsLastSibling();
 
@@ -184,13 +231,6 @@ public class GameOverPanel : MonoBehaviour
             }
 
             // Ensure any CanvasGroup is visible and blocks raycasts
-            var cg = panel.GetComponent<CanvasGroup>();
-            if (cg != null)
-            {
-                cg.alpha = 1f;
-                cg.interactable = true;
-                cg.blocksRaycasts = true;
-            }
 
             // If the panel background is fully transparent, give it a default overlay
             var img = panel.GetComponent<Image>();
@@ -233,19 +273,113 @@ public class GameOverPanel : MonoBehaviour
 
     private void OnRetry()
     {
-        if (panel != null)
-        {
-            panel.SetActive(false);
-        }
-        GameManager.Instance?.StartTestLevel();
+        StartCoroutine(RetryRoutine());
     }
 
     private void OnContinue()
     {
+        StartCoroutine(ContinueRoutine());
+    }
+
+    private void HandleGameStarted(GameState newGame)
+    {
+        cachedGameState = newGame;
+        HidePanel();
+    }
+
+    private System.Collections.IEnumerator RetryRoutine()
+    {
+        HidePanel();
+        cachedGameState = null; // ensure we don't reuse the ended game's state
+
+        var gm = GameManager.Instance;
+        var previousGame = gm != null ? gm.CurrentGame : null;
+
+        gm?.RestartCurrentLevel();
+
+        // Wait a few frames for GameManager to spin up a new game instance
+        yield return WaitForNewGame(previousGame);
+        HidePanel();
+    }
+
+    private System.Collections.IEnumerator ContinueRoutine()
+    {
+        HidePanel();
+        cachedGameState = null; // ensure we don't reuse the ended game's state
+
+        var gm = GameManager.Instance;
+        var previousGame = gm != null ? gm.CurrentGame : null;
+
+        gm?.StartNextLevel();
+
+        // Wait a few frames for GameManager to spin up a new game instance
+        yield return WaitForNewGame(previousGame);
+        HidePanel();
+    }
+
+    private System.Collections.IEnumerator WaitForNewGame(GameState previousGame)
+    {
+        var gm = GameManager.Instance;
+
+        // Wait up to a handful of frames for a new GameState reference
+        const int maxFrames = 10;
+        for (int i = 0; i < maxFrames; i++)
+        {
+            if (gm != null && gm.CurrentGame != null && gm.CurrentGame != previousGame)
+            {
+                cachedGameState = gm.CurrentGame;
+                yield break;
+            }
+            yield return null;
+        }
+
+        // Fallback: if we still don't have a new game, attempt a direct restart
+        if (gm != null)
+        {
+            gm.StartTestLevel();
+
+            for (int i = 0; i < maxFrames; i++)
+            {
+                if (gm.CurrentGame != null && gm.CurrentGame != previousGame)
+                {
+                    cachedGameState = gm.CurrentGame;
+                    yield break;
+                }
+                yield return null;
+            }
+        }
+    }
+
+    private void HidePanel()
+    {
         if (panel != null)
         {
             panel.SetActive(false);
+            SetCanvasGroup(panel, false);
         }
-        GameManager.Instance?.StartTestLevel();
+        SetCanvasGroup(gameObject, false);
+    }
+
+    private void SetCanvasGroup(GameObject go, bool visible)
+    {
+        if (go == null) return;
+
+        var cg = go.GetComponent<CanvasGroup>();
+        if (cg == null)
+        {
+            cg = go.AddComponent<CanvasGroup>();
+        }
+
+        cg.alpha = visible ? 1f : 0f;
+        cg.interactable = visible;
+        cg.blocksRaycasts = visible;
+    }
+
+    private static void ValidateSerializedField(Object field, string fieldName)
+    {
+        if (field == null)
+        {
+            throw new MissingReferenceException($"GameOverPanel requires '{fieldName}' to be assigned in the inspector.");
+        }
     }
 }

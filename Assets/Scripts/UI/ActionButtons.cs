@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System;
 
 public class ActionButtons : MonoBehaviour
 {
@@ -9,11 +10,12 @@ public class ActionButtons : MonoBehaviour
     private static readonly Color SELECTED_COLOR = new(0.7f, 0.7f, 0.9f);
     private static readonly Color DISABLED_COLOR = new(0.5f, 0.5f, 0.5f, 0.5f);
     private static readonly Color DISCARD_WARNING_COLOR = new(1f, 0.5f, 0.5f);
+    private static readonly Color NORMAL_COLOR = new(0.22f, 0.27f, 0.34f);
+    private static readonly Color TEXT_COLOR = Color.white;
 
     [SerializeField] private Button drawStockButton;
     [SerializeField] private Button drawDiscardButton;
     [SerializeField] private Button playPatternButton;
-    [SerializeField] private Button discardButton;
     [SerializeField] private TextMeshProUGUI discardTopCardText;
 
     private readonly PatternValidator patternValidator = new();
@@ -27,20 +29,26 @@ public class ActionButtons : MonoBehaviour
         StartCoroutine(InitializeButtons());
     }
 
+    private void OnEnable()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameStarted += HandleGameStarted;
+        }
+    }
+
     private void SetupButtonListeners()
     {
         drawStockButton.onClick.AddListener(OnDrawStock);
         drawDiscardButton.onClick.AddListener(OnDrawDiscard);
         playPatternButton.onClick.AddListener(OnPlayPattern);
-        discardButton.onClick.AddListener(OnDiscard);
     }
 
     private void ApplyHoverEffects()
     {
-        AddHoverEffect(drawStockButton);
-        AddHoverEffect(drawDiscardButton);
-        AddHoverEffect(playPatternButton);
-        AddHoverEffect(discardButton);
+        StyleButton(drawStockButton);
+        StyleButton(drawDiscardButton);
+        StyleButton(playPatternButton);
     }
 
     private System.Collections.IEnumerator InitializeButtons()
@@ -50,13 +58,20 @@ public class ActionButtons : MonoBehaviour
             yield return null;
         }
 
-        cachedGameState = GameManager.Instance.CurrentGame;
-        cachedGameState.OnHandChanged += UpdateButtonStates;
-        UpdateButtonStates();
+        // Subscribe once the GameManager exists (covers the case OnEnable ran before Awake)
+        GameManager.Instance.OnGameStarted -= HandleGameStarted;
+        GameManager.Instance.OnGameStarted += HandleGameStarted;
+
+        HandleGameStarted(GameManager.Instance.CurrentGame);
     }
 
     private void OnDestroy()
     {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameStarted -= HandleGameStarted;
+        }
+
         if (cachedGameState != null)
         {
             cachedGameState.OnHandChanged -= UpdateButtonStates;
@@ -65,7 +80,19 @@ public class ActionButtons : MonoBehaviour
 
     private void OnDrawStock()
     {
-        GameManager.Instance.DrawCard(fromDiscard: false);
+        var selectedIndices = HandDisplay.Instance?.GetSelectedIndices();
+
+        // If cards are selected, treat Draw Stock as a discard-then-refill action
+        if (selectedIndices != null && selectedIndices.Count > 0)
+        {
+            GameManager.Instance.DiscardCards(selectedIndices);
+            HandDisplay.Instance.ClearSelection();
+        }
+        else
+        {
+            GameManager.Instance.DrawCard(fromDiscard: false);
+        }
+
         UpdateButtonStates();
     }
 
@@ -83,36 +110,26 @@ public class ActionButtons : MonoBehaviour
         UpdateButtonStates();
     }
 
-    private void OnDiscard()
-    {
-        var selectedIndices = HandDisplay.Instance.GetSelectedIndices();
-        if (selectedIndices.Count >= 1 && selectedIndices.Count <= 5)
-        {
-            GameManager.Instance.DiscardCards(selectedIndices);
-            HandDisplay.Instance.ClearSelection();
-            UpdateButtonStates();
-        }
-    }
-
     public void UpdateButtonStates()
     {
         if (cachedGameState == null) return;
+
+        var selectedIndices = HandDisplay.Instance?.GetSelectedIndices() ?? new System.Collections.Generic.List<int>();
+        bool hasSelection = selectedIndices.Count > 0;
 
         if (inputLocked)
         {
             drawStockButton.interactable = false;
             drawDiscardButton.interactable = false;
             playPatternButton.interactable = false;
-            discardButton.interactable = false;
             return;
         }
 
         bool mustDiscard = cachedGameState.MustDiscard;
 
-        UpdateDrawButtons(mustDiscard);
+        UpdateDrawButtons(mustDiscard, hasSelection);
         UpdateDiscardPileDisplay();
-        UpdatePlayPatternButton();
-        UpdateDiscardButton(mustDiscard);
+        UpdatePlayPatternButton(selectedIndices);
     }
 
     public void SetInputEnabled(bool enabled)
@@ -121,10 +138,18 @@ public class ActionButtons : MonoBehaviour
         UpdateButtonStates();
     }
 
-    private void UpdateDrawButtons(bool mustDiscard)
+    private void UpdateDrawButtons(bool mustDiscard, bool hasSelection)
     {
-        drawStockButton.interactable = !mustDiscard && cachedGameState.CanDraw() && cachedGameState.Deck.DrawPileCount > 0;
-        drawDiscardButton.interactable = !mustDiscard && cachedGameState.CanDraw() && cachedGameState.Deck.DiscardPileCount > 0;
+        bool canDraw = cachedGameState.CanDraw();
+        bool stockAvailable = cachedGameState.Deck.DrawPileCount > 0;
+        bool discardAvailable = cachedGameState.Deck.DiscardPileCount > 0;
+
+        // Allow draw button when must-discard if there is a selection to discard first.
+        drawStockButton.interactable =
+            ((!mustDiscard && canDraw && stockAvailable) ||
+             (mustDiscard && hasSelection));
+
+        drawDiscardButton.interactable = (!mustDiscard && canDraw && discardAvailable);
     }
 
     private void UpdateDiscardPileDisplay()
@@ -136,9 +161,8 @@ public class ActionButtons : MonoBehaviour
             : "Empty";
     }
 
-    private void UpdatePlayPatternButton()
+    private void UpdatePlayPatternButton(System.Collections.Generic.List<int> selectedIndices)
     {
-        var selectedIndices = HandDisplay.Instance?.GetSelectedIndices();
         if (selectedIndices == null || selectedIndices.Count == 0)
         {
             playPatternButton.interactable = false;
@@ -150,25 +174,47 @@ public class ActionButtons : MonoBehaviour
         playPatternButton.interactable = hasPattern && cachedGameState.MovesRemaining > 0;
     }
 
-    private void UpdateDiscardButton(bool mustDiscard)
-    {
-        var selectedIndices = HandDisplay.Instance?.GetSelectedIndices();
-        int selectedCount = selectedIndices?.Count ?? 0;
-        bool validSelection = selectedCount >= 1 && selectedCount <= 5;
-        discardButton.interactable = validSelection && cachedGameState.Hand.Count >= selectedCount && cachedGameState.MovesRemaining > 0;
-
-        var colors = discardButton.colors;
-        colors.normalColor = mustDiscard ? DISCARD_WARNING_COLOR : Color.white;
-        discardButton.colors = colors;
-    }
-
     private void AddHoverEffect(Button button)
     {
         var colors = button.colors;
+        colors.normalColor = NORMAL_COLOR;
         colors.highlightedColor = HIGHLIGHT_COLOR;
         colors.pressedColor = PRESSED_COLOR;
         colors.selectedColor = SELECTED_COLOR;
         colors.disabledColor = DISABLED_COLOR;
+        colors.colorMultiplier = 1f;
         button.colors = colors;
+    }
+
+    private void StyleButton(Button button)
+    {
+        if (button == null) return;
+
+        AddHoverEffect(button);
+
+        var text = button.GetComponentInChildren<TextMeshProUGUI>();
+        if (text != null)
+        {
+            text.color = TEXT_COLOR;
+        }
+
+        var image = button.GetComponent<UnityEngine.UI.Image>();
+        if (image != null)
+        {
+            image.color = NORMAL_COLOR;
+        }
+    }
+
+    private void HandleGameStarted(GameState newGame)
+    {
+        if (cachedGameState != null)
+        {
+            cachedGameState.OnHandChanged -= UpdateButtonStates;
+        }
+
+        cachedGameState = newGame;
+        cachedGameState.OnHandChanged += UpdateButtonStates;
+        inputLocked = false;
+        UpdateButtonStates();
     }
 }

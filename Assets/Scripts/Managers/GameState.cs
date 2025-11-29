@@ -11,6 +11,8 @@ public class GameState
     public int Score { get; private set; }
     public int MovesRemaining { get; private set; }
     public List<Goal> Goals { get; private set; }
+    public string LevelName { get; private set; }
+    public string DeckDescription { get; private set; }
     
     // Constants
     public const int MaxHandSize = 7;
@@ -37,6 +39,21 @@ public class GameState
         Goals = goals;
         MovesRemaining = totalMoves;
         Score = 0;
+        LevelName = "Test Level";
+        DeckDescription = "Standard deck (52 + 2 jokers)";
+    }
+
+    public GameState(LevelDefinition levelDefinition)
+    {
+        Hand = new List<Card>();
+        Deck = new Deck();
+        Goals = levelDefinition.BuildGoals();
+        MovesRemaining = levelDefinition.totalMoves;
+        Score = 0;
+        LevelName = string.IsNullOrWhiteSpace(levelDefinition.levelName) ? "Test Level" : levelDefinition.levelName;
+        DeckDescription = levelDefinition.deckTweaks != null ? levelDefinition.deckTweaks.Describe() : "Standard deck (52 + 2 jokers)";
+
+        Deck.ApplyTweaks(levelDefinition.deckTweaks);
     }
 
     public void DealInitialHand()
@@ -140,8 +157,6 @@ public class GameState
 
     public bool PlayPattern(List<Card> cards, IPattern pattern)
     {
-        if (MovesRemaining <= 0) return false;
-
         // Validate pattern
         if (!pattern.Validate(cards)) return false;
 
@@ -166,7 +181,8 @@ public class GameState
         OnScoreChanged?.Invoke(Score);
         OnHandChanged?.Invoke();
 
-        return SpendMoves(1);
+        // Playing a pattern no longer costs a move
+        return true;
     }
 
     private void UpdateGoals(IPattern pattern, int points)

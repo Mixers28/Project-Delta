@@ -16,6 +16,17 @@ Use the **Unity Test Runner** (Window → General → Test Runner):
 - **Edit Mode tests** — Run pattern validation rules
 
 See `.github/copilot-instructions.md` for detailed developer workflows and architecture guidance.
+### Current Build Status
+- Tests not run here (Unity editor/build not executed in CLI). Run Play/Edit Mode tests in Unity Test Runner to verify locally.
+
+### Recent Gameplay Changes
+- Added level progression that generates a new Stage on each win (harder goals/moves/deck tweaks); Continue advances the stage.
+- Retry now resets progression to Stage 1 (base goals) to allow a fresh attempt after failure.
+- Playing a pattern no longer consumes a move, making goal completion more achievable within move limits.
+- HUD overlay cleaned up: shows only Stage and goals (deck/level labels removed).
+- Action panel simplified to three buttons: Draw Stock, Draw Discard, Play Pattern.
+- Draw Stock now discards selected cards first (when over hand limit) then refills from stock.
+- UI polish: themed action buttons, subtle card shadows, and slight lift on selected cards.
 
 ## Project Structure
 

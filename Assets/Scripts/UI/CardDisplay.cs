@@ -20,7 +20,7 @@ public class CardDisplay : MonoBehaviour
     [SerializeField] private Color selectedColor = Color.yellow;
 
     [Header("Animation")]
-    [SerializeField] private float selectScale = 1f; // disable bump on select
+    [SerializeField] private float selectScale = 1.05f; // small lift on select
     [SerializeField] private float animationSpeed = 10f;
 
     private Button button;
@@ -36,6 +36,15 @@ public class CardDisplay : MonoBehaviour
             button.onClick.AddListener(OnClicked);
         }
         normalScale = transform.localScale;
+
+        // Subtle shadow for depth
+        var shadow = GetComponent<UnityEngine.UI.Shadow>();
+        if (shadow == null)
+        {
+            shadow = gameObject.AddComponent<UnityEngine.UI.Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.4f);
+            shadow.effectDistance = new Vector2(2f, -2f);
+        }
     }
 
     private void Update()

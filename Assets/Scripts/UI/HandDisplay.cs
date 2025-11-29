@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using TMPro;
+using System;
 
 public class HandDisplay : MonoBehaviour
 {
@@ -18,6 +19,7 @@ public class HandDisplay : MonoBehaviour
     private readonly PatternValidator patternValidator = new();
     private ActionButtons cachedActionButtons;
     private bool inputLocked;
+    private GameState cachedGameState;
 
     private void Awake()
     {
@@ -29,6 +31,27 @@ public class HandDisplay : MonoBehaviour
         StartCoroutine(WaitForGameManager());
     }
 
+    private void OnEnable()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameStarted += HandleGameStarted;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameStarted -= HandleGameStarted;
+        }
+
+        if (cachedGameState != null)
+        {
+            cachedGameState.OnHandChanged -= RefreshHand;
+        }
+    }
+
     private System.Collections.IEnumerator WaitForGameManager()
     {
         Debug.Log("Waiting for GameManager...");
@@ -37,11 +60,14 @@ public class HandDisplay : MonoBehaviour
         {
             yield return null;
         }
-        
+
         Debug.Log("GameManager ready!");
-        
-        GameManager.Instance.CurrentGame.OnHandChanged += RefreshHand;
-        RefreshHand();
+
+        // Subscribe once the GameManager exists (covers the case OnEnable ran before Awake)
+        GameManager.Instance.OnGameStarted -= HandleGameStarted;
+        GameManager.Instance.OnGameStarted += HandleGameStarted;
+
+        HandleGameStarted(GameManager.Instance.CurrentGame);
     }
 
     public void RefreshHand()
@@ -55,13 +81,13 @@ public class HandDisplay : MonoBehaviour
         }
         cardDisplays.Clear();
         
-        if (GameManager.Instance?.CurrentGame == null)
+        if (cachedGameState == null)
         {
             Debug.LogError("GameManager or CurrentGame is NULL!");
             return;
         }
 
-        var hand = GameManager.Instance.CurrentGame.Hand;
+        var hand = cachedGameState.Hand;
         
         if (cardPrefab == null)
         {
@@ -188,5 +214,21 @@ public class HandDisplay : MonoBehaviour
         {
             ClearSelection();
         }
+    }
+
+    private void HandleGameStarted(GameState game)
+    {
+        if (game == null) return;
+
+        if (cachedGameState != null)
+        {
+            cachedGameState.OnHandChanged -= RefreshHand;
+        }
+
+        cachedGameState = game;
+        cachedGameState.OnHandChanged += RefreshHand;
+        inputLocked = false;
+        ClearSelection();
+        RefreshHand();
     }
 }

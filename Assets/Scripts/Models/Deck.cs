@@ -39,6 +39,40 @@ public class Deck
         Shuffle();
     }
 
+    public void ApplyTweaks(DeckTweakSettings tweaks)
+    {
+        if (tweaks == null)
+        {
+            return;
+        }
+
+        if (tweaks.extraJokers > 0)
+        {
+            for (int i = 0; i < tweaks.extraJokers; i++)
+            {
+                drawPile.Add(new Card(Card.Suit.Joker, Card.Rank.Joker));
+            }
+        }
+
+        if (tweaks.additionalCards != null)
+        {
+            foreach (var extra in tweaks.additionalCards)
+            {
+                if (extra.count <= 0) continue;
+
+                for (int i = 0; i < extra.count; i++)
+                {
+                    drawPile.Add(new Card(extra.suit, extra.rank));
+                }
+            }
+        }
+
+        if (tweaks.shuffleAfterTweaks)
+        {
+            Shuffle();
+        }
+    }
+
     public void Shuffle()
     {
         // Fisher-Yates shuffle
