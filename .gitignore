@@ -6,6 +6,7 @@
 [Bb]uilds/
 [Ll]ogs/
 [Uu]serSettings/
+[Pp]rojectsettings/
 
 # Generated project files
 *.csproj
@@ -22,6 +23,7 @@ ignore.conf
 .vs/
 .vscode/
 .idea/
+.vd/project
 
 # OS junk
 .DS_Store
