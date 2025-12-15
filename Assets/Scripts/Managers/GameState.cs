@@ -123,16 +123,11 @@ public class GameState
     public bool DiscardCards(List<Card> cards)
     {
         if (cards == null || cards.Count == 0) return false;
-        if (cards.Count > 5)
-        {
-            Debug.LogWarning("Cannot discard more than 5 cards at once.");
-            return false;
-        }
 
         if (!cards.All(c => Hand.Contains(c))) return false;
 
-        int moveCost = CalculateDiscardMoveCost(cards.Count);
-        if (!SpendMoves(moveCost))
+        // Discard always costs exactly 1 move regardless of how many cards are discarded.
+        if (!SpendMoves(1))
         {
             Debug.LogWarning("Not enough moves to discard.");
             return false;
@@ -147,12 +142,6 @@ public class GameState
 
         OnHandChanged?.Invoke();
         return true;
-    }
-
-    private int CalculateDiscardMoveCost(int discardCount)
-    {
-        discardCount = Mathf.Clamp(discardCount, 1, 5);
-        return (discardCount + 1) / 2; // ceil(discardCount/2)
     }
 
     public bool PlayPattern(List<Card> cards, IPattern pattern)

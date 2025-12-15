@@ -12,6 +12,10 @@ public class LevelDefinition : ScriptableObject
     [Header("Goals")]
     public List<GoalDefinition> goals = new();
 
+    [Header("Rules")]
+    [Tooltip("If empty, all patterns are allowed. Otherwise only these PatternIds can be played.")]
+    public List<PatternId> allowedPatterns = new();
+
     [Header("Deck Tweaks")]
     public DeckTweakSettings deckTweaks = new();
 
@@ -33,6 +37,8 @@ public class LevelDefinition : ScriptableObject
 
         return builtGoals;
     }
+
+    public IReadOnlyList<PatternId> AllowedPatterns => allowedPatterns;
 }
 
 [Serializable]
@@ -45,13 +51,24 @@ public class GoalDefinition
 [Serializable]
 public class DeckTweakSettings
 {
+    [Header("Shuffle")]
     [Tooltip("Add extra jokers on top of the default two")]
     public int extraJokers = 0;
 
     public bool shuffleAfterTweaks = true;
 
+    [Tooltip("Use a deterministic shuffle seed (helps tutorial reliability).")]
+    public bool useDeterministicShuffle = false;
+
+    [Tooltip("Seed used when deterministic shuffle is enabled.")]
+    public int shuffleSeed = 0;
+
     [Tooltip("Optional extra cards to add before shuffling")]
     public List<ExtraCardDefinition> additionalCards = new();
+
+    [Header("Preset Pile")]
+    [Tooltip("If provided, replaces the standard deck's draw pile before applying other tweaks (optional).")]
+    public List<Card> presetDrawPile = new();
 
     public string Describe()
     {
@@ -79,6 +96,16 @@ public class DeckTweakSettings
         if (!shuffleAfterTweaks)
         {
             parts.Add("No shuffle after tweaks");
+        }
+
+        if (useDeterministicShuffle)
+        {
+            parts.Add($"Seeded shuffle ({shuffleSeed})");
+        }
+
+        if (presetDrawPile != null && presetDrawPile.Count > 0)
+        {
+            parts.Add($"Preset draw pile ({presetDrawPile.Count})");
         }
 
         return string.Join(", ", parts);

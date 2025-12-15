@@ -3,6 +3,7 @@ using System.Linq;
 
 public class FullHousePattern : IPattern
 {
+    public PatternId Id => PatternId.FullHouse5;
     public string Name => "Full House";
     public int BasePoints => 200;
 

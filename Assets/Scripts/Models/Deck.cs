@@ -46,6 +46,37 @@ public class Deck
             return;
         }
 
+        // If deterministic shuffle is requested (or preset pile is provided), rebuild from a known base order
+        // so the resulting deck is stable across runs.
+        bool hasPreset = tweaks.presetDrawPile != null && tweaks.presetDrawPile.Count > 0;
+        if (tweaks.useDeterministicShuffle || hasPreset)
+        {
+            drawPile.Clear();
+            discardPile.Clear();
+
+            if (hasPreset)
+            {
+                drawPile.AddRange(tweaks.presetDrawPile);
+            }
+            else
+            {
+                // Standard deck in deterministic order (unshuffled).
+                foreach (Card.Suit suit in System.Enum.GetValues(typeof(Card.Suit)))
+                {
+                    if (suit == Card.Suit.Joker) continue;
+
+                    foreach (Card.Rank rank in System.Enum.GetValues(typeof(Card.Rank)))
+                    {
+                        if (rank == Card.Rank.Joker) continue;
+                        drawPile.Add(new Card(suit, rank));
+                    }
+                }
+
+                drawPile.Add(new Card(Card.Suit.Joker, Card.Rank.Joker));
+                drawPile.Add(new Card(Card.Suit.Joker, Card.Rank.Joker));
+            }
+        }
+
         if (tweaks.extraJokers > 0)
         {
             for (int i = 0; i < tweaks.extraJokers; i++)
@@ -69,14 +100,14 @@ public class Deck
 
         if (tweaks.shuffleAfterTweaks)
         {
-            Shuffle();
+            Shuffle(tweaks.useDeterministicShuffle ? tweaks.shuffleSeed : (int?)null);
         }
     }
 
-    public void Shuffle()
+    public void Shuffle(int? seed = null)
     {
         // Fisher-Yates shuffle
-        System.Random rng = new System.Random();
+        System.Random rng = seed.HasValue ? new System.Random(seed.Value) : new System.Random();
         int n = drawPile.Count;
         while (n > 1)
         {
@@ -98,12 +129,11 @@ public class Deck
     public Card? DrawFromDiscard()
     {
         if (discardPile.Count == 0) return null;
-        
-        // Pull a random card from the discard pile (not just the top)
-        System.Random rng = new System.Random();
-        int index = rng.Next(discardPile.Count);
-        Card card = discardPile[index];
-        discardPile.RemoveAt(index);
+
+        // Discard pile is LIFO: draw from the top.
+        int lastIndex = discardPile.Count - 1;
+        Card card = discardPile[lastIndex];
+        discardPile.RemoveAt(lastIndex);
         return card;
     }
 

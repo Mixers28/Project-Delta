@@ -8,6 +8,7 @@ public class GameManager : MonoBehaviour
 
     public GameState CurrentGame { get; private set; }
     public PatternValidator PatternValidator { get; private set; }
+    public bool IsRunModeActive => RunModeService.IsActive;
 
     [Header("Level Configuration")]
     [SerializeField] private LevelDefinition testLevelDefinition;
@@ -18,6 +19,9 @@ public class GameManager : MonoBehaviour
     private LevelDefinition[] loadedLevels = Array.Empty<LevelDefinition>();
     private int currentLevelIndex;
     private int progressionStep;
+
+    public System.Collections.Generic.IReadOnlyList<PatternId> AllowedPatterns { get; private set; } = System.Array.Empty<PatternId>();
+    public AchievementsService Achievements { get; private set; }
     
     // Events for UI listeners
     public delegate void GameEndHandler(bool isWin);
@@ -34,6 +38,13 @@ public class GameManager : MonoBehaviour
         }
         Instance = this;
 
+        ProgressionService.EnsureInitialized();
+        Achievements = new AchievementsService(ProgressionService.Profile);
+        AchievementToast.EnsureExists();
+        AchievementsScreen.EnsureExists();
+        StartupScreen.EnsureExists();
+        PostTutorialScreen.EnsureExists();
+        Achievements.OnUnlocked += HandleAchievementUnlocked;
         EnsureUISetup();
         EnsureLevelsLoaded();
     }
@@ -41,7 +52,7 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         PatternValidator = new PatternValidator();
-        StartTestLevel();
+        StartupScreen.ShowOnBoot(StartTestLevel);
     }
     #endregion
 
@@ -49,11 +60,47 @@ public class GameManager : MonoBehaviour
     public void StartTestLevel()
     {
         if (progressionStep < 0) progressionStep = 0;
+        if (ProgressionService.IsTutorialActive)
+        {
+            StartTutorialLevel();
+            return;
+        }
+
+        if (PostTutorialScreen.ShowIfNeeded(onStartRun: StartRunMode, onContinue: StartTestLevel))
+        {
+            return;
+        }
+
         StartLevel(atIndex: currentLevelIndex);
+    }
+
+    public void StartRunMode()
+    {
+        if (!RunModeService.CanStart())
+        {
+            Debug.LogWarning("Run Mode is locked until the tutorial is complete.");
+            return;
+        }
+
+        RunModeService.StartNewRun();
+        progressionStep = 0;
+        currentLevelIndex = 0;
+        StartLevel(atIndex: currentLevelIndex);
+    }
+
+    public void StopRunMode()
+    {
+        RunModeService.StopRun();
     }
 
     public void RestartCurrentLevel()
     {
+        if (ProgressionService.IsTutorialActive)
+        {
+            StartTutorialLevel();
+            return;
+        }
+
         // On fail+retry, reset progression to stage 1 of the first level
         progressionStep = 0;
         currentLevelIndex = 0;
@@ -62,6 +109,17 @@ public class GameManager : MonoBehaviour
 
     public void StartNextLevel()
     {
+        if (ProgressionService.IsTutorialActive)
+        {
+            StartTutorialLevel();
+            return;
+        }
+
+        if (PostTutorialScreen.ShowIfNeeded(onStartRun: StartRunMode, onContinue: StartTestLevel))
+        {
+            return;
+        }
+
         EnsureLevelsLoaded();
         if (loadedLevels.Length == 0)
         {
@@ -74,6 +132,19 @@ public class GameManager : MonoBehaviour
         StartLevel(atIndex: currentLevelIndex);
     }
 
+    private void StartTutorialLevel()
+    {
+        EnsureUISetup();
+
+        CleanupCurrentGame();
+        gameEnded = false;
+
+        var tutorialDef = TutorialLevelFactory.Create(ProgressionService.Profile.TutorialStep);
+
+        Debug.Log($"[Progression] tutorialStep={ProgressionService.Profile.TutorialStep} tutorialActive={ProgressionService.IsTutorialActive} (tutorial)");
+        InitializeNewGame(tutorialDef);
+    }
+
     private void StartLevel(int atIndex)
     {
         EnsureUISetup();
@@ -81,6 +152,12 @@ public class GameManager : MonoBehaviour
 
         CleanupCurrentGame();
         gameEnded = false;
+
+        if (ProgressionService.IsTutorialActive)
+        {
+            StartTutorialLevel();
+            return;
+        }
 
         if (loadedLevels.Length == 0)
         {
@@ -90,12 +167,40 @@ public class GameManager : MonoBehaviour
         currentLevelIndex = Mathf.Clamp(atIndex, 0, loadedLevels.Length - 1);
         var levelDef = BuildRuntimeVariant(loadedLevels[currentLevelIndex], progressionStep);
 
+        Debug.Log($"[Progression] tutorialStep={ProgressionService.Profile.TutorialStep} tutorialActive={ProgressionService.IsTutorialActive} levelIndex={currentLevelIndex} progressionStep={progressionStep}");
         InitializeNewGame(levelDef);
     }
 
     private void InitializeNewGame(LevelDefinition levelDefinition)
     {
+        if (Achievements == null)
+        {
+            Achievements = new AchievementsService(ProgressionService.Profile);
+            Achievements.OnUnlocked += HandleAchievementUnlocked;
+        }
+
         CurrentGame = new GameState(levelDefinition);
+
+        // Configure pattern rules per-level (Sprint 3: AllowedPatterns).
+        bool hasGating = levelDefinition != null && levelDefinition.AllowedPatterns != null && levelDefinition.AllowedPatterns.Count > 0;
+        AllowedPatterns = hasGating ? new System.Collections.Generic.List<PatternId>(levelDefinition.AllowedPatterns) : System.Array.Empty<PatternId>();
+
+        // If the level doesn't explicitly gate patterns, hide suited runs until they're unlocked.
+        System.Collections.Generic.IEnumerable<PatternId> excluded = null;
+        if (!hasGating && !ProgressionService.Profile.HasFeature(RunModeService.FeatureSuitedRuns))
+        {
+            excluded = new[]
+            {
+                PatternId.SuitedRun3,
+                PatternId.SuitedRun4,
+                PatternId.SuitedRun5
+            };
+        }
+
+        PatternValidator = hasGating
+            ? new PatternValidator(AllowedPatterns, excludedPatterns: null)
+            : new PatternValidator(allowedPatterns: null, excludedPatterns: excluded);
+
         BindGameEvents(CurrentGame);
 
         CurrentGame.DealInitialHand();
@@ -117,8 +222,8 @@ public class GameManager : MonoBehaviour
         var selectedCards = CurrentGame.GetSelectedCards(cardIndices);
         if (selectedCards.Count == 0) return;
 
-        // Find best pattern
-        var bestPattern = PatternValidator.GetBestPattern(selectedCards);
+        // Find best pattern, preferring patterns that advance incomplete goals.
+        var bestPattern = PatternSelection.GetBestPatternForGoals(PatternValidator, selectedCards, CurrentGame.Goals);
         if (!bestPattern.HasValue)
         {
             Debug.Log("No valid pattern detected");
@@ -137,7 +242,15 @@ public class GameManager : MonoBehaviour
     {
         if (CurrentGame == null) return;
 
-        bool success = fromDiscard ? CurrentGame.DrawFromDiscard() : CurrentGame.DrawFromStock();
+        // Draw fills the hand up to the maximum size and always costs 1 move total.
+        int missing = Mathf.Max(0, GameState.MaxHandSize - CurrentGame.Hand.Count);
+        if (missing == 0)
+        {
+            Debug.Log("Hand is already full");
+            return;
+        }
+
+        bool success = CurrentGame.DrawCards(missing, fromDiscard);
         
         if (!success)
         {
@@ -152,7 +265,6 @@ public class GameManager : MonoBehaviour
 
         // Normalize indices to cards to avoid shifting issues
         var cards = CurrentGame.GetSelectedCards(handIndices);
-        int discardCount = cards.Count;
         bool success = CurrentGame.DiscardCards(cards);
 
         if (!success)
@@ -161,8 +273,12 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        // Auto-refill: draw the same number of cards without extra move cost.
-        for (int i = 0; i < discardCount; i++)
+        // Auto-refill: draw up to MaxHandSize without extra move cost.
+        // Important: don't draw "discardCount" because if the hand was over the limit,
+        // discarding 1 and drawing 1 would keep it over the limit and force discard mode forever.
+        int maxHandSize = GameState.MaxHandSize;
+        int missing = Mathf.Max(0, maxHandSize - CurrentGame.Hand.Count);
+        for (int i = 0; i < missing; i++)
         {
             if (!CurrentGame.DrawFromStock(consumeMove: false))
             {
@@ -188,6 +304,12 @@ public class GameManager : MonoBehaviour
     private void HandlePatternPlayed(IPattern pattern, int score)
     {
         Debug.Log($"<color=green>Played {pattern.Name} for {score} points!</color>");
+    }
+
+    private void HandleAchievementUnlocked(AchievementDefinition def)
+    {
+        if (def == null) return;
+        AchievementToast.Show($"Achievement Unlocked: {def.name}", $"+{def.rewardCoins} coins");
     }
 
     private void HandleGoalUpdated(Goal goal)
@@ -245,6 +367,27 @@ public class GameManager : MonoBehaviour
             LockPlayerInput();
             Debug.Log("<color=cyan>=== LEVEL COMPLETE! ===</color>");
             Debug.Log($"Final Score: {CurrentGame.Score}");
+
+            if (RunModeService.IsActive)
+            {
+                RunModeService.RecordLevelWin(CurrentGame.Score);
+            }
+
+            Achievements?.OnLevelCompleted();
+            ProgressionService.AdvanceTutorialStepIfWin(isWin: true);
+
+            // Track basic non-tutorial progression for feature unlocks.
+            if (!ProgressionService.IsTutorialActive)
+            {
+                var profile = ProgressionService.Profile;
+                profile.highestLevelCompleted += 1;
+                if (!profile.HasFeature(RunModeService.FeatureSuitedRuns) && profile.highestLevelCompleted >= 5)
+                {
+                    profile.UnlockFeature(RunModeService.FeatureSuitedRuns);
+                }
+                ProgressionService.Save();
+            }
+
             OnGameEnd?.Invoke(true); // Notify listeners of WIN
             Debug.Log("V OnGameEnd invoked for WIN");
             gameEnded = true;
@@ -254,6 +397,11 @@ public class GameManager : MonoBehaviour
             LockPlayerInput();
             Debug.Log("<color=red>=== LEVEL FAILED ===</color>");
             Debug.Log("Out of moves!");
+
+            if (RunModeService.IsActive)
+            {
+                RunModeService.RecordRunEnd();
+            }
             OnGameEnd?.Invoke(false); // Notify listeners of LOSS
             Debug.Log("V OnGameEnd invoked for LOSS");
             gameEnded = true;
@@ -320,7 +468,10 @@ public class GameManager : MonoBehaviour
         }
 
         var variant = ScriptableObject.CreateInstance<LevelDefinition>();
-        variant.levelName = $"{baseDefinition.levelName} - Stage {difficultyStep + 1}";
+        variant.levelName = $"{baseDefinition.levelName} - Level {difficultyStep + 1}";
+        variant.allowedPatterns = baseDefinition.allowedPatterns != null
+            ? new System.Collections.Generic.List<PatternId>(baseDefinition.allowedPatterns)
+            : new System.Collections.Generic.List<PatternId>();
 
         int moveVariance = UnityEngine.Random.Range(-1, 2) + Mathf.Min(difficultyStep, 2);
         variant.totalMoves = Mathf.Max(6, baseDefinition.totalMoves + moveVariance + difficultyStep);
@@ -398,6 +549,11 @@ public class GameManager : MonoBehaviour
         game.OnGoalUpdated += HandleGoalUpdated;
         game.OnScoreChanged += HandleScoreChanged;
         game.OnMovesChanged += HandleMovesChanged;
+
+        if (Achievements != null)
+        {
+            game.OnPatternPlayed += Achievements.OnPatternPlayed;
+        }
     }
 
     private void UnbindGameEvents(GameState game)
@@ -408,6 +564,11 @@ public class GameManager : MonoBehaviour
         game.OnGoalUpdated -= HandleGoalUpdated;
         game.OnScoreChanged -= HandleScoreChanged;
         game.OnMovesChanged -= HandleMovesChanged;
+
+        if (Achievements != null)
+        {
+            game.OnPatternPlayed -= Achievements.OnPatternPlayed;
+        }
     }
     #endregion
 

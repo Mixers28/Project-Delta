@@ -14,16 +14,17 @@ public class ActionButtons : MonoBehaviour
     private static readonly Color TEXT_COLOR = Color.white;
 
     [SerializeField] private Button drawStockButton;
+    [SerializeField] private Button discardButton;
     [SerializeField] private Button drawDiscardButton;
     [SerializeField] private Button playPatternButton;
     [SerializeField] private TextMeshProUGUI discardTopCardText;
 
-    private readonly PatternValidator patternValidator = new();
     private GameState cachedGameState;
     private bool inputLocked;
 
     private void Start()
     {
+        EnsureDiscardButtonExists();
         SetupButtonListeners();
         ApplyHoverEffects();
         StartCoroutine(InitializeButtons());
@@ -40,6 +41,10 @@ public class ActionButtons : MonoBehaviour
     private void SetupButtonListeners()
     {
         drawStockButton.onClick.AddListener(OnDrawStock);
+        if (discardButton != null)
+        {
+            discardButton.onClick.AddListener(OnDiscardSelected);
+        }
         drawDiscardButton.onClick.AddListener(OnDrawDiscard);
         playPatternButton.onClick.AddListener(OnPlayPattern);
     }
@@ -47,6 +52,7 @@ public class ActionButtons : MonoBehaviour
     private void ApplyHoverEffects()
     {
         StyleButton(drawStockButton);
+        StyleButton(discardButton);
         StyleButton(drawDiscardButton);
         StyleButton(playPatternButton);
     }
@@ -80,20 +86,24 @@ public class ActionButtons : MonoBehaviour
 
     private void OnDrawStock()
     {
-        var selectedIndices = HandDisplay.Instance?.GetSelectedIndices();
-
-        // If cards are selected, treat Draw Stock as a discard-then-refill action
-        if (selectedIndices != null && selectedIndices.Count > 0)
-        {
-            GameManager.Instance.DiscardCards(selectedIndices);
-            HandDisplay.Instance.ClearSelection();
-        }
-        else
-        {
-            GameManager.Instance.DrawCard(fromDiscard: false);
-        }
-
+        GameManager.Instance.DrawCard(fromDiscard: false);
         UpdateButtonStates();
+    }
+
+    private void OnDiscardSelected()
+    {
+        var selectedIndices = HandDisplay.Instance?.GetSelectedIndices();
+        if (selectedIndices == null || selectedIndices.Count == 0) return;
+
+        GameManager.Instance.DiscardCards(selectedIndices);
+        HandDisplay.Instance.ClearSelection();
+        UpdateButtonStates();
+    }
+
+    // Back-compat for old scene button wiring.
+    private void OnDiscard()
+    {
+        OnDiscardSelected();
     }
 
     private void OnDrawDiscard()
@@ -115,11 +125,13 @@ public class ActionButtons : MonoBehaviour
         if (cachedGameState == null) return;
 
         var selectedIndices = HandDisplay.Instance?.GetSelectedIndices() ?? new System.Collections.Generic.List<int>();
-        bool hasSelection = selectedIndices.Count > 0;
+        int selectedCount = selectedIndices.Count;
+        bool hasSelection = selectedCount > 0;
 
         if (inputLocked)
         {
             drawStockButton.interactable = false;
+            if (discardButton != null) discardButton.interactable = false;
             drawDiscardButton.interactable = false;
             playPatternButton.interactable = false;
             return;
@@ -127,7 +139,8 @@ public class ActionButtons : MonoBehaviour
 
         bool mustDiscard = cachedGameState.MustDiscard;
 
-        UpdateDrawButtons(mustDiscard, hasSelection);
+        UpdateDrawButtons(mustDiscard);
+        UpdateDiscardButton(hasSelection);
         UpdateDiscardPileDisplay();
         UpdatePlayPatternButton(selectedIndices);
     }
@@ -138,18 +151,20 @@ public class ActionButtons : MonoBehaviour
         UpdateButtonStates();
     }
 
-    private void UpdateDrawButtons(bool mustDiscard, bool hasSelection)
+    private void UpdateDrawButtons(bool mustDiscard)
     {
         bool canDraw = cachedGameState.CanDraw();
         bool stockAvailable = cachedGameState.Deck.DrawPileCount > 0;
         bool discardAvailable = cachedGameState.Deck.DiscardPileCount > 0;
 
-        // Allow draw button when must-discard if there is a selection to discard first.
-        drawStockButton.interactable =
-            ((!mustDiscard && canDraw && stockAvailable) ||
-             (mustDiscard && hasSelection));
-
+        drawStockButton.interactable = (!mustDiscard && canDraw && stockAvailable);
         drawDiscardButton.interactable = (!mustDiscard && canDraw && discardAvailable);
+    }
+
+    private void UpdateDiscardButton(bool hasSelection)
+    {
+        if (discardButton == null) return;
+        discardButton.interactable = hasSelection && cachedGameState.CanDiscard();
     }
 
     private void UpdateDiscardPileDisplay()
@@ -170,7 +185,8 @@ public class ActionButtons : MonoBehaviour
         }
 
         var selectedCards = cachedGameState.GetSelectedCards(selectedIndices);
-        var hasPattern = patternValidator.DetectPatterns(selectedCards).Count > 0;
+        var validator = GameManager.Instance != null ? GameManager.Instance.PatternValidator : null;
+        var hasPattern = validator != null && validator.DetectPatterns(selectedCards).Count > 0;
         playPatternButton.interactable = hasPattern && cachedGameState.MovesRemaining > 0;
     }
 
@@ -216,5 +232,44 @@ public class ActionButtons : MonoBehaviour
         cachedGameState.OnHandChanged += UpdateButtonStates;
         inputLocked = false;
         UpdateButtonStates();
+    }
+
+    private void EnsureDiscardButtonExists()
+    {
+        if (discardButton != null) return;
+        if (drawStockButton == null || drawDiscardButton == null) return;
+
+        var parent = drawStockButton.transform.parent;
+        if (parent == null) return;
+
+        var clone = Instantiate(drawStockButton.gameObject, parent);
+        clone.name = "DiscardButton";
+
+        var rt = clone.GetComponent<RectTransform>();
+        var stockRt = drawStockButton.GetComponent<RectTransform>();
+        var discardRt = drawDiscardButton.GetComponent<RectTransform>();
+        if (rt != null && stockRt != null && discardRt != null)
+        {
+            rt.anchorMin = stockRt.anchorMin;
+            rt.anchorMax = stockRt.anchorMax;
+            rt.pivot = stockRt.pivot;
+            rt.sizeDelta = stockRt.sizeDelta;
+            rt.localScale = stockRt.localScale;
+
+            float midX = (stockRt.anchoredPosition.x + discardRt.anchoredPosition.x) / 2f;
+            rt.anchoredPosition = new Vector2(midX, stockRt.anchoredPosition.y);
+        }
+
+        discardButton = clone.GetComponent<Button>();
+        if (discardButton != null)
+        {
+            discardButton.onClick = new Button.ButtonClickedEvent();
+        }
+
+        var label = clone.GetComponentInChildren<TextMeshProUGUI>();
+        if (label != null)
+        {
+            label.text = "Discard";
+        }
     }
 }

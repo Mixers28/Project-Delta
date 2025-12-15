@@ -1,6 +1,7 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using System.Linq;
 
 public class GameOverPanel : MonoBehaviour
 {
@@ -10,11 +11,13 @@ public class GameOverPanel : MonoBehaviour
     [SerializeField] private GameObject panel;
     [SerializeField] private TextMeshProUGUI titleText;
     [SerializeField] private TextMeshProUGUI messageText;
+    [SerializeField] private TextMeshProUGUI statsText;
     [SerializeField] private Button retryButton;
     [SerializeField] private Button continueButton;
 
     private GameState cachedGameState;
     private bool isConfigured;
+    private bool lastIsWin;
 
     public void Configure()
     {
@@ -28,6 +31,8 @@ public class GameOverPanel : MonoBehaviour
         ValidateSerializedField(messageText, nameof(messageText));
         ValidateSerializedField(retryButton, nameof(retryButton));
         ValidateSerializedField(continueButton, nameof(continueButton));
+
+        EnsureStatsTextExists();
 
         retryButton.onClick.AddListener(OnRetry);
         continueButton.onClick.AddListener(OnContinue);
@@ -112,6 +117,7 @@ public class GameOverPanel : MonoBehaviour
         }
 
         Debug.Log($"GameOverPanel.HandleGameEnd isWin={isWin}");
+        lastIsWin = isWin;
 
         if (isWin)
         {
@@ -127,17 +133,31 @@ public class GameOverPanel : MonoBehaviour
     {
         if (!ValidateReferences()) return;
 
+        EnsureStatsTextExists();
+        ApplyStatsTextLayout();
+
         titleText.text = "LEVEL COMPLETE!";
         titleText.color = Color.yellow;
 
-        messageText.text = BuildWinMessage();
+        messageText.text = BuildGoalsSummary();
+        if (statsText != null)
+        {
+            statsText.text = BuildWinStatsSummary();
+        }
+
+        // Ensure Continue label is restored if Run Mode changed it.
+        if (continueButton != null)
+        {
+            var label = continueButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (label != null) label.text = "Continue";
+        }
 
         SetButtonVisibility(showContinue: true, showRetry: false);
         ActivatePanel();
         StartCoroutine(CelebrationAnimation());
     }
 
-    private string BuildWinMessage()
+    private string BuildGoalsSummary()
     {
         string goalsSummary = "";
         foreach (var goal in cachedGameState.Goals)
@@ -145,19 +165,53 @@ public class GameOverPanel : MonoBehaviour
             goalsSummary += $"- {goal.DisplayText}\n";
         }
 
-        return $"<size=48>Score: {cachedGameState.Score}</size>\n\n{goalsSummary}\nMoves Remaining: {cachedGameState.MovesRemaining}";
+        return goalsSummary;
+    }
+
+    private string BuildWinStatsSummary()
+    {
+        string achievementsSummary = "";
+        var gm = GameManager.Instance;
+        if (gm != null && gm.Achievements != null)
+        {
+            var unlocked = gm.Achievements.TakeRecentlyUnlocked();
+            if (unlocked != null && unlocked.Count > 0)
+            {
+                int coins = unlocked.Sum(a => a.rewardCoins);
+                achievementsSummary = "\nAchievements Unlocked:\n" +
+                                      string.Join("\n", unlocked.Select(a => $"- {a.name} (+{a.rewardCoins})")) +
+                                      $"\nCoins Earned: +{coins}";
+            }
+        }
+
+        return $"Score: {cachedGameState.Score}\nMoves: {cachedGameState.MovesRemaining}{achievementsSummary}";
     }
 
     private void ShowLose()
     {
         if (!ValidateReferences()) return;
 
-        titleText.text = "LEVEL FAILED";
+        EnsureStatsTextExists();
+        ApplyStatsTextLayout();
+
+        bool isRunMode = GameManager.Instance != null && GameManager.Instance.IsRunModeActive;
+
+        titleText.text = isRunMode ? "RUN ENDED" : "LEVEL FAILED";
         titleText.color = Color.red;
 
         messageText.text = BuildLoseMessage();
+        if (statsText != null)
+        {
+            statsText.text = "";
+        }
 
-        SetButtonVisibility(showContinue: false, showRetry: true);
+        // In run mode, "Continue" becomes "New Run".
+        SetButtonVisibility(showContinue: isRunMode, showRetry: !isRunMode);
+        if (continueButton != null && isRunMode)
+        {
+            var label = continueButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (label != null) label.text = "New Run";
+        }
         ActivatePanel();
     }
 
@@ -250,7 +304,46 @@ public class GameOverPanel : MonoBehaviour
                 var c = messageText.color;
                 messageText.color = new Color(c.r, c.g, c.b, 1f);
             }
+            if (statsText != null)
+            {
+                var c = statsText.color;
+                statsText.color = new Color(c.r, c.g, c.b, 1f);
+            }
         }
+    }
+
+    private void EnsureStatsTextExists()
+    {
+        if (statsText != null) return;
+        if (panel == null || messageText == null) return;
+
+        var go = new GameObject("StatsText");
+        go.transform.SetParent(panel.transform, false);
+
+        statsText = go.AddComponent<TextMeshProUGUI>();
+        statsText.raycastTarget = false;
+        statsText.font = messageText.font;
+        statsText.fontSize = Mathf.Max(18, messageText.fontSize - 2);
+        statsText.color = messageText.color;
+        statsText.enableWordWrapping = true;
+        statsText.alignment = TextAlignmentOptions.BottomLeft;
+
+        ApplyStatsTextLayout();
+    }
+
+    private void ApplyStatsTextLayout()
+    {
+        if (statsText == null) return;
+
+        statsText.alignment = TextAlignmentOptions.BottomLeft;
+
+        var rt = statsText.rectTransform;
+        // Place above the Continue button, roughly aligned with the goals list height.
+        rt.anchorMin = new Vector2(0f, 0f);
+        rt.anchorMax = new Vector2(0f, 0f);
+        rt.pivot = new Vector2(0f, 0f);
+        rt.anchoredPosition = new Vector2(24f, 220f);
+        rt.sizeDelta = new Vector2(520f, 260f);
     }
 
     private System.Collections.IEnumerator CelebrationAnimation()
@@ -310,7 +403,14 @@ public class GameOverPanel : MonoBehaviour
         var gm = GameManager.Instance;
         var previousGame = gm != null ? gm.CurrentGame : null;
 
-        gm?.StartNextLevel();
+        if (gm != null && gm.IsRunModeActive && !lastIsWin)
+        {
+            gm.StartRunMode();
+        }
+        else
+        {
+            gm?.StartNextLevel();
+        }
 
         // Wait a few frames for GameManager to spin up a new game instance
         yield return WaitForNewGame(previousGame);

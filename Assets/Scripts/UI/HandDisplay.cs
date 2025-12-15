@@ -16,7 +16,6 @@ public class HandDisplay : MonoBehaviour
     [SerializeField] private CardSpriteLibrary spriteLibrary;
 
     private readonly List<CardDisplay> cardDisplays = new();
-    private readonly PatternValidator patternValidator = new();
     private ActionButtons cachedActionButtons;
     private bool inputLocked;
     private GameState cachedGameState;
@@ -146,16 +145,15 @@ public class HandDisplay : MonoBehaviour
 
     private void UpdatePatternPreview()
     {
-        var game = GameManager.Instance?.CurrentGame;
-        
-        if (game != null && game.MustDiscard)
+        if (patternPreviewText == null)
         {
-            patternPreviewText.text = "⚠️ SELECT 1 CARD TO DISCARD ⚠️";
-            patternPreviewText.color = Color.red;
             return;
         }
-        
-        patternPreviewText.color = Color.yellow;
+
+        var game = cachedGameState ?? GameManager.Instance?.CurrentGame;
+
+        bool mustDiscard = game != null && game.MustDiscard;
+        patternPreviewText.color = mustDiscard ? Color.red : Color.yellow;
         
         var selectedCards = cardDisplays
             .Where(cd => cd.IsSelected)
@@ -164,11 +162,28 @@ public class HandDisplay : MonoBehaviour
 
         if (selectedCards.Count == 0)
         {
-            patternPreviewText.text = "Select cards to see patterns";
+            string basePrompt = mustDiscard
+                ? "Hand over limit: play a pattern or select cards and press Discard"
+                : "Select cards to see patterns";
+
+            var allowed = GameManager.Instance != null ? GameManager.Instance.AllowedPatterns : null;
+            if (allowed != null && allowed.Count > 0)
+            {
+                basePrompt += $"\nAllowed: {string.Join(", ", allowed.Select(p => p.ToDisplayName()))}";
+            }
+
+            patternPreviewText.text = basePrompt;
             return;
         }
 
-        var patterns = patternValidator.DetectPatterns(selectedCards);
+        if (mustDiscard && selectedCards.Count == 1)
+        {
+            patternPreviewText.text = "Press Discard (or select more to play a pattern)";
+            return;
+        }
+
+        var validator = GameManager.Instance != null ? GameManager.Instance.PatternValidator : null;
+        var patterns = validator != null ? validator.DetectPatterns(selectedCards) : new List<IPattern>();
 
         if (patterns.Count == 0)
         {
@@ -176,7 +191,7 @@ public class HandDisplay : MonoBehaviour
         }
         else
         {
-            var best = patternValidator.GetBestPattern(selectedCards);
+            var best = PatternSelection.GetBestPatternForGoals(validator, selectedCards, cachedGameState != null ? cachedGameState.Goals : null);
             if (best.HasValue)
             {
                 patternPreviewText.text = $"{best.Value.pattern.Name} - {best.Value.score} points";

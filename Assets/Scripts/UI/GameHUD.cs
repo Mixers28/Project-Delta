@@ -123,15 +123,17 @@ public class GameHUD : MonoBehaviour
             return;
         }
 
-        // Show only stage info (if present) and goals; hide level/deck labels to declutter overlay
+        // Show only level info (if present) and goals; hide deck labels to declutter overlay
         string stageLabel = cachedGameState.LevelName;
-        int stageIndex = stageLabel.LastIndexOf("Stage", StringComparison.OrdinalIgnoreCase);
-        if (stageIndex >= 0)
+        int levelIndex = stageLabel.LastIndexOf("Level", StringComparison.OrdinalIgnoreCase);
+        if (levelIndex >= 0)
         {
-            stageLabel = stageLabel.Substring(stageIndex).Trim();
+            stageLabel = stageLabel.Substring(levelIndex).Trim();
         }
 
-        string goalsDisplay = $"Stage: {stageLabel}\nGoals:\n";
+        string goalsDisplay = string.IsNullOrWhiteSpace(stageLabel)
+            ? "Goals:\n"
+            : $"{stageLabel}\nGoals:\n";
 
         foreach (var g in cachedGameState.Goals)
         {

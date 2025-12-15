@@ -4,6 +4,7 @@ using System.Linq;
 // Interface
 public interface IPattern
 {
+    PatternId Id { get; }
     string Name { get; }
     int BasePoints { get; }
     bool Validate(List<Card> cards);
@@ -16,7 +17,12 @@ public static class PatternExtensions
     public static int CalculateScoreWithMultipliers(this IPattern pattern, List<Card> cards)
     {
         if (!pattern.Validate(cards)) return 0;
-        int score = pattern.BasePoints;
+        return ApplyMultipliers(pattern.BasePoints, cards);
+    }
+
+    public static int ApplyMultipliers(int basePoints, List<Card> cards)
+    {
+        int score = basePoints;
 
         if (cards.Any(c => c.IsJoker))
             score = (int)(score * 1.5);
@@ -36,6 +42,7 @@ public static class PatternExtensions
 // Pair Pattern
 public class PairPattern : IPattern
 {
+    public PatternId Id => PatternId.Pair;
     public string Name => "Pair";
     public int BasePoints => 10;
 
@@ -56,6 +63,7 @@ public class PairPattern : IPattern
 // Three of a Kind Pattern
 public class ThreeOfKindPattern : IPattern
 {
+    public PatternId Id => PatternId.ThreeOfKind;
     public string Name => "Three of a Kind";
     public int BasePoints => 30;
 
@@ -83,6 +91,13 @@ public class ThreeOfKindPattern : IPattern
 public class RunPattern : IPattern
 {
     private int minimumLength;
+
+    public PatternId Id => minimumLength switch
+    {
+        3 => PatternId.SuitedRun3,
+        4 => PatternId.SuitedRun4,
+        _ => PatternId.SuitedRun5
+    };
 
     public string Name => $"Run of {minimumLength}";
     public int BasePoints => minimumLength switch
@@ -140,9 +155,76 @@ public class RunPattern : IPattern
     }
 }
 
-public class NewBaseType
+// Straight (suit-agnostic) run pattern for tutorial / early game.
+public class StraightRunPattern : IPattern
 {
-    private List<IPattern> patterns;
+    private int minimumLength;
+
+    public PatternId Id => minimumLength switch
+    {
+        3 => PatternId.StraightRun3,
+        4 => PatternId.StraightRun4,
+        _ => PatternId.StraightRun5
+    };
+
+    public string Name => $"Straight Run of {minimumLength}";
+    public int BasePoints => minimumLength switch
+    {
+        3 => 40,
+        4 => 80,
+        >= 5 => 150,
+        _ => 0
+    };
+
+    public StraightRunPattern(int length = 3)
+    {
+        minimumLength = length;
+    }
+
+    public bool Validate(List<Card> cards)
+    {
+        if (cards.Count < minimumLength) return false;
+
+        int jokerCount = cards.Count(c => c.IsJoker);
+        var nonJokers = cards.Where(c => !c.IsJoker).ToList();
+        if (nonJokers.Count == 0) return false;
+
+        nonJokers = nonJokers.OrderBy(c => c.rank).ToList();
+
+        // Duplicate ranks can't form a run.
+        if (nonJokers.Select(c => c.rank).Distinct().Count() != nonJokers.Count)
+        {
+            return false;
+        }
+
+        return CanFormRun(nonJokers, jokerCount);
+    }
+
+    private bool CanFormRun(List<Card> nonJokers, int jokersAvailable)
+    {
+        if (nonJokers.Count == 0)
+            return jokersAvailable >= minimumLength;
+
+        int jokersUsed = 0;
+        int expectedRank = (int)nonJokers[0].rank;
+
+        foreach (var card in nonJokers)
+        {
+            int gap = (int)card.rank - expectedRank;
+            if (gap < 0) return false;
+            jokersUsed += gap;
+            if (jokersUsed > jokersAvailable) return false;
+            expectedRank = (int)card.rank + 1;
+        }
+
+        int totalCards = nonJokers.Count + jokersAvailable;
+        return totalCards >= minimumLength;
+    }
+
+    public int CalculateScore(List<Card> cards)
+    {
+        return this.CalculateScoreWithMultipliers(cards);
+    }
 }
 
 // Pattern Validator
@@ -152,16 +234,59 @@ public class PatternValidator
 
     public PatternValidator()
     {
-        patterns = new List<IPattern>
+        patterns = BuildDefaultPatterns();
+    }
+
+    public PatternValidator(IEnumerable<PatternId> allowedPatterns)
+    {
+        patterns = BuildDefaultPatterns();
+        ApplyFilters(allowedPatterns, excludedPatterns: null);
+    }
+
+    public PatternValidator(IEnumerable<PatternId> allowedPatterns, IEnumerable<PatternId> excludedPatterns)
+    {
+        patterns = BuildDefaultPatterns();
+        ApplyFilters(allowedPatterns, excludedPatterns);
+    }
+
+    private static List<IPattern> BuildDefaultPatterns()
+    {
+        return new List<IPattern>
         {
             new PairPattern(),
             new ThreeOfKindPattern(),
             new RunPattern(3),
             new RunPattern(4),
             new RunPattern(5),
+            new StraightRunPattern(3),
+            new StraightRunPattern(4),
+            new StraightRunPattern(5),
+            new SuitSetPattern(3),
+            new ColorSetPattern(3),
             new FlushPattern(),           // NEW
             new FullHousePattern()        // NEW
         };
+    }
+
+    private void ApplyFilters(IEnumerable<PatternId> allowedPatterns, IEnumerable<PatternId> excludedPatterns)
+    {
+        if (allowedPatterns != null)
+        {
+            var allowed = new HashSet<PatternId>(allowedPatterns);
+            if (allowed.Count > 0)
+            {
+                patterns = patterns.Where(p => allowed.Contains(p.Id)).ToList();
+            }
+        }
+
+        if (excludedPatterns != null)
+        {
+            var excluded = new HashSet<PatternId>(excludedPatterns);
+            if (excluded.Count > 0)
+            {
+                patterns = patterns.Where(p => !excluded.Contains(p.Id)).ToList();
+            }
+        }
     }
 
     public List<IPattern> DetectPatterns(List<Card> cards)

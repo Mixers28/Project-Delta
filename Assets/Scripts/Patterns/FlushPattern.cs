@@ -3,6 +3,7 @@ using System.Linq;
 
 public class FlushPattern : IPattern
 {
+    public PatternId Id => PatternId.Flush5;
     public string Name => "Flush";
     public int BasePoints => 100;
 
