@@ -8,6 +8,7 @@ public static class PatternIdExtensions
         {
             PatternId.Pair => "Pair",
             PatternId.ThreeOfKind => "Three of a Kind",
+            PatternId.FourOfKind => "Four of a Kind",
 
             PatternId.SuitedRun3 => "Suited Run (3+)",
             PatternId.SuitedRun4 => "Suited Run (4+)",
@@ -22,9 +23,9 @@ public static class PatternIdExtensions
 
             PatternId.Flush5 => "Flush (5)",
             PatternId.FullHouse5 => "Full House (5)",
+            PatternId.RoyalFlush5 => "Royal Flush (5)",
 
             _ => id.ToString()
         };
     }
 }
-

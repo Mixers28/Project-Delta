@@ -43,11 +43,100 @@ public class AchievementsService
         {
             Increment(AchievementIds.FirstStraightRun3, 1);
         }
+
+        if (pattern.Id == PatternId.SuitedRun3 || pattern.Id == PatternId.SuitedRun4 || pattern.Id == PatternId.SuitedRun5)
+        {
+            Increment(AchievementIds.FirstSuitedRun3, 1);
+        }
+
+        if (pattern.Id == PatternId.SuitSet3Plus)
+        {
+            Increment(AchievementIds.FirstSuitSet, 1);
+        }
+
+        if (pattern.Id == PatternId.ColorSet3Plus)
+        {
+            Increment(AchievementIds.FirstColorSet, 1);
+        }
+
+        if (pattern.Id == PatternId.FourOfKind)
+        {
+            Increment(AchievementIds.FirstFourOfKind, 1);
+        }
+
+        if (pattern.Id == PatternId.RoyalFlush5)
+        {
+            Increment(AchievementIds.FirstRoyalFlush, 1);
+        }
     }
 
     public void OnPatternPlayed(IPattern pattern, int score)
     {
         OnPatternPlayed(pattern);
+    }
+
+    public void OnPatternPlayedDetailed(IPattern pattern, List<Card> cards, List<Goal> goals)
+    {
+        if (pattern == null || cards == null || goals == null || goals.Count == 0) return;
+
+        if (DidOverachieveAnActiveGoal(pattern, cards, goals))
+        {
+            Increment(AchievementIds.Overachiever, 1);
+        }
+    }
+
+    private static bool DidOverachieveAnActiveGoal(IPattern pattern, List<Card> cards, List<Goal> goals)
+    {
+        foreach (var goal in goals)
+        {
+            if (goal == null) continue;
+            if (goal.type == Goal.GoalType.TotalScore) continue;
+            if (!goal.MatchesPattern(pattern)) continue;
+
+            // Goal matching has already occurred in GameState.UpdateGoals by this point; infer "was incomplete"
+            // by checking whether current was below required before the +1 increment.
+            int currentBefore = goal.current - 1;
+            bool wasIncompleteBefore = currentBefore < goal.required;
+            if (!wasIncompleteBefore) continue;
+
+            if (PatternExceedsGoalMinimum(pattern, cards, goal.type))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool PatternExceedsGoalMinimum(IPattern pattern, List<Card> cards, Goal.GoalType goalType)
+    {
+        int playedCount = cards.Count;
+
+        switch (goalType)
+        {
+            case Goal.GoalType.ThreeOfKind:
+                return pattern.Id == PatternId.FourOfKind;
+
+            case Goal.GoalType.Flush:
+                return pattern.Id == PatternId.RoyalFlush5;
+
+            case Goal.GoalType.Run3:
+            case Goal.GoalType.StraightRun3:
+            case Goal.GoalType.SuitedRun3:
+                return playedCount > 3;
+
+            case Goal.GoalType.Run4:
+            case Goal.GoalType.StraightRun4:
+            case Goal.GoalType.SuitedRun4:
+                return playedCount > 4;
+
+            case Goal.GoalType.SuitSet3Plus:
+            case Goal.GoalType.ColorSet3Plus:
+                return playedCount > 3;
+
+            default:
+                return false;
+        }
     }
 
     private void EnsureProgressEntries()

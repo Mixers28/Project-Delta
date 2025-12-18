@@ -231,22 +231,33 @@ public class StraightRunPattern : IPattern
 public class PatternValidator
 {
     private List<IPattern> patterns;
+    private readonly bool allowJokersInSelection;
 
     public PatternValidator()
     {
         patterns = BuildDefaultPatterns();
+        allowJokersInSelection = true;
     }
 
     public PatternValidator(IEnumerable<PatternId> allowedPatterns)
     {
         patterns = BuildDefaultPatterns();
         ApplyFilters(allowedPatterns, excludedPatterns: null);
+        allowJokersInSelection = true;
     }
 
     public PatternValidator(IEnumerable<PatternId> allowedPatterns, IEnumerable<PatternId> excludedPatterns)
     {
         patterns = BuildDefaultPatterns();
         ApplyFilters(allowedPatterns, excludedPatterns);
+        allowJokersInSelection = true;
+    }
+
+    public PatternValidator(IEnumerable<PatternId> allowedPatterns, IEnumerable<PatternId> excludedPatterns, bool allowJokersInSelection)
+    {
+        patterns = BuildDefaultPatterns();
+        ApplyFilters(allowedPatterns, excludedPatterns);
+        this.allowJokersInSelection = allowJokersInSelection;
     }
 
     private static List<IPattern> BuildDefaultPatterns()
@@ -255,6 +266,7 @@ public class PatternValidator
         {
             new PairPattern(),
             new ThreeOfKindPattern(),
+            new FourOfKindPattern(),
             new RunPattern(3),
             new RunPattern(4),
             new RunPattern(5),
@@ -264,6 +276,7 @@ public class PatternValidator
             new SuitSetPattern(3),
             new ColorSetPattern(3),
             new FlushPattern(),           // NEW
+            new RoyalFlushPattern(),
             new FullHousePattern()        // NEW
         };
     }
@@ -291,6 +304,11 @@ public class PatternValidator
 
     public List<IPattern> DetectPatterns(List<Card> cards)
     {
+        if (!allowJokersInSelection && cards.Any(c => c.IsJoker))
+        {
+            return new List<IPattern>();
+        }
+
         return patterns.Where(p => p.Validate(cards)).ToList();
     }
 

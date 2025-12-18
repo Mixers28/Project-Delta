@@ -13,6 +13,7 @@ public class GameState
     public List<Goal> Goals { get; private set; }
     public string LevelName { get; private set; }
     public string DeckDescription { get; private set; }
+    public RuleTier CurrentRuleTier { get; private set; } = RuleTier.Early;
     
     // Constants
     public const int MaxHandSize = 7;
@@ -54,6 +55,25 @@ public class GameState
         DeckDescription = levelDefinition.deckTweaks != null ? levelDefinition.deckTweaks.Describe() : "Standard deck (52 + 2 jokers)";
 
         Deck.ApplyTweaks(levelDefinition.deckTweaks);
+    }
+
+    public void ApplyRuleTier(RuleTier tier)
+    {
+        CurrentRuleTier = tier;
+
+        if (tier >= RuleTier.Mid)
+        {
+            Deck.RemoveJokers();
+
+            if (!string.IsNullOrWhiteSpace(DeckDescription))
+            {
+                DeckDescription = $"{DeckDescription} (no jokers)";
+            }
+            else
+            {
+                DeckDescription = "Standard deck (no jokers)";
+            }
+        }
     }
 
     public void DealInitialHand()

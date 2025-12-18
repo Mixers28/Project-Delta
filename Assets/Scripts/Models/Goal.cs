@@ -79,7 +79,7 @@ public class Goal
                 return pattern.Id == PatternId.Pair;
 
             case GoalType.ThreeOfKind:
-                return pattern.Id == PatternId.ThreeOfKind;
+                return pattern.Id == PatternId.ThreeOfKind || pattern.Id == PatternId.FourOfKind;
 
             // Legacy suited-run goals (kept to preserve existing behavior).
             case GoalType.Run3:
@@ -127,7 +127,7 @@ public class Goal
                 return pattern.Id == PatternId.SuitedRun5;
 
             case GoalType.Flush:
-                return pattern.Id == PatternId.Flush5;
+                return pattern.Id == PatternId.Flush5 || pattern.Id == PatternId.RoyalFlush5;
 
             case GoalType.FullHouse:
                 return pattern.Id == PatternId.FullHouse5;

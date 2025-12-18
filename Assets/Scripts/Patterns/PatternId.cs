@@ -3,6 +3,8 @@ public enum PatternId
     Pair,
     ThreeOfKind,
 
+    FourOfKind,
+
     SuitedRun3,
     SuitedRun4,
     SuitedRun5,
@@ -15,5 +17,7 @@ public enum PatternId
     ColorSet3Plus,
 
     Flush5,
-    FullHouse5
+    FullHouse5,
+
+    RoyalFlush5
 }

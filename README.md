@@ -151,3 +151,11 @@ For AI coding assistants (Copilot, Claude, etc.), see `.github/copilot-instructi
 - Project-specific conventions
 - Common extension patterns
 - Developer workflows
+
+### Local Agent Memory Workflow
+This repo uses a lightweight “files as memory” workflow under `docs/`:
+- `docs/PROJECT_CONTEXT.md` (long-term memory)
+- `docs/NOW.md` (working memory / current focus)
+- `docs/SESSION_NOTES.md` (append-only session log)
+
+Roles live in `.github/agents/` and the session ritual is documented in `docs/AGENT_SESSION_PROTOCOL.md` (helpers in `scripts/` and VS Code tasks in `.vscode/tasks.json`).

@@ -14,6 +14,11 @@ public class PlayerProfile
 
     public int highestLevelCompleted = 0;
 
+    // Count of level wins after the tutorial is complete.
+    // Used for difficulty tiering (early → mid/late).
+    [Min(0)]
+    public int nonTutorialWins = 0;
+
     public int coins = 0;
 
     public List<string> unlockedFeatures = new();
@@ -31,6 +36,12 @@ public class PlayerProfile
     {
         get => Mathf.Max(1, tutorialStep);
         set => tutorialStep = Mathf.Max(1, value);
+    }
+
+    public int NonTutorialWins
+    {
+        get => Mathf.Max(0, nonTutorialWins);
+        set => nonTutorialWins = Mathf.Max(0, value);
     }
 
     public bool HasFeature(string featureFlag)

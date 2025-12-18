@@ -11,7 +11,6 @@ public class AchievementsScreen : MonoBehaviour
     private CanvasGroup overlayGroup;
     private RectTransform listContent;
     private ScrollRect scrollRect;
-    private Button openButton;
     private Button closeButton;
 
     public static AchievementsScreen EnsureExists()
@@ -53,16 +52,6 @@ public class AchievementsScreen : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
 
         canvasGo.AddComponent<GraphicRaycaster>();
-
-        // Small open button on HUD
-        openButton = CreateButton(canvasGo.transform, "OpenAchievementsButton", "Achievements");
-        var openRt = openButton.GetComponent<RectTransform>();
-        openRt.anchorMin = new Vector2(1f, 1f);
-        openRt.anchorMax = new Vector2(1f, 1f);
-        openRt.pivot = new Vector2(1f, 1f);
-        openRt.anchoredPosition = new Vector2(-18f, -18f);
-        openRt.sizeDelta = new Vector2(240f, 70f);
-        openButton.onClick.AddListener(Show);
 
         // Fullscreen overlay
         var overlayGo = new GameObject("Overlay");
@@ -170,7 +159,7 @@ public class AchievementsScreen : MonoBehaviour
         scroll.content = listContent;
     }
 
-    private void Show()
+    public void Show()
     {
         Refresh();
         if (scrollRect != null)
@@ -182,7 +171,7 @@ public class AchievementsScreen : MonoBehaviour
         overlayGroup.blocksRaycasts = true;
     }
 
-    private void Hide()
+    public void Hide()
     {
         overlayGroup.alpha = 0f;
         overlayGroup.interactable = false;
@@ -275,6 +264,34 @@ public class AchievementsScreen : MonoBehaviour
         var metaText = CreateText(rowRt, "Meta", $"{progress}  {reward}".Trim(), 24, bold: false);
         metaText.alignment = TextAlignmentOptions.Left;
         metaText.alpha = 0.85f;
+
+        // Progress bar
+        float ratio = target <= 0 ? 0f : Mathf.Clamp01((float)current / target);
+        var barGo = new GameObject("ProgressBar");
+        barGo.transform.SetParent(rowRt, false);
+        var barRt = barGo.AddComponent<RectTransform>();
+        barRt.anchorMin = new Vector2(0f, 1f);
+        barRt.anchorMax = new Vector2(1f, 1f);
+        barRt.pivot = new Vector2(0.5f, 1f);
+        barRt.sizeDelta = new Vector2(0f, 14f);
+
+        var barLayout = barGo.AddComponent<LayoutElement>();
+        barLayout.preferredHeight = 14f;
+        barLayout.minHeight = 14f;
+
+        var barBg = barGo.AddComponent<Image>();
+        barBg.color = new Color(0f, 0f, 0f, 0.25f);
+
+        var fillGo = new GameObject("Fill");
+        fillGo.transform.SetParent(barRt, false);
+        var fillRt = fillGo.AddComponent<RectTransform>();
+        fillRt.anchorMin = new Vector2(0f, 0f);
+        fillRt.anchorMax = new Vector2(ratio, 1f);
+        fillRt.offsetMin = Vector2.zero;
+        fillRt.offsetMax = Vector2.zero;
+
+        var fillImg = fillGo.AddComponent<Image>();
+        fillImg.color = unlocked ? new Color(0.35f, 0.85f, 0.45f, 0.9f) : new Color(0.35f, 0.65f, 1f, 0.75f);
     }
 
     private static Button CreateButton(Transform parent, string name, string label)

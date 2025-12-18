@@ -1,7 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
-public class CardDisplay : MonoBehaviour
+public class CardDisplay : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     private const float DEFAULT_CARD_WIDTH = 150f;
     private const float DEFAULT_CARD_HEIGHT = 210f;
@@ -21,11 +22,21 @@ public class CardDisplay : MonoBehaviour
 
     [Header("Animation")]
     [SerializeField] private float selectScale = 1.05f; // small lift on select
+    [SerializeField] private float dragScale = 1.08f; // small lift while dragging
+    [SerializeField] private float dragRotationZ = -4f;
     [SerializeField] private float animationSpeed = 10f;
 
     private Button button;
+    private bool buttonWasInteractable = true;
+    private bool didDragSinceLastClick;
     private Vector3 normalScale = Vector3.one;
     private Vector3 targetScale = Vector3.one;
+    private float dragScaleMultiplier = 1f;
+    private Quaternion baseRotation;
+    private Quaternion targetRotation;
+    private UnityEngine.UI.Shadow shadow;
+    private Vector2 baseShadowDistance;
+    private Color baseShadowColor;
     private CardSpriteLibrary spriteLibrary;
 
     private void Awake()
@@ -36,21 +47,26 @@ public class CardDisplay : MonoBehaviour
             button.onClick.AddListener(OnClicked);
         }
         normalScale = transform.localScale;
+        baseRotation = transform.localRotation;
+        targetRotation = baseRotation;
 
         // Subtle shadow for depth
-        var shadow = GetComponent<UnityEngine.UI.Shadow>();
+        shadow = GetComponent<UnityEngine.UI.Shadow>();
         if (shadow == null)
         {
             shadow = gameObject.AddComponent<UnityEngine.UI.Shadow>();
             shadow.effectColor = new Color(0f, 0f, 0f, 0.4f);
             shadow.effectDistance = new Vector2(2f, -2f);
         }
+        baseShadowDistance = shadow.effectDistance;
+        baseShadowColor = shadow.effectColor;
     }
 
     private void Update()
     {
         // Smooth scale animation
-        transform.localScale = Vector3.Lerp(transform.localScale, targetScale, Time.deltaTime * animationSpeed);
+        transform.localScale = Vector3.Lerp(transform.localScale, targetScale * dragScaleMultiplier, Time.deltaTime * animationSpeed);
+        transform.localRotation = Quaternion.Slerp(transform.localRotation, targetRotation, Time.deltaTime * animationSpeed);
     }
 
     public void SetCard(Card card, CardSpriteLibrary library = null)
@@ -220,11 +236,70 @@ public class CardDisplay : MonoBehaviour
         }
     }
 
+    public void SetDraggingVisual(bool dragging)
+    {
+        dragScaleMultiplier = dragging ? dragScale : 1f;
+
+        if (dragging)
+        {
+            targetRotation = Quaternion.Euler(0f, 0f, dragRotationZ);
+            if (shadow != null)
+            {
+                shadow.effectDistance = baseShadowDistance * 2.2f;
+                shadow.effectColor = new Color(baseShadowColor.r, baseShadowColor.g, baseShadowColor.b, Mathf.Clamp01(baseShadowColor.a + 0.25f));
+            }
+        }
+        else
+        {
+            targetRotation = baseRotation;
+            if (shadow != null)
+            {
+                shadow.effectDistance = baseShadowDistance;
+                shadow.effectColor = baseShadowColor;
+            }
+        }
+    }
+
     private void OnClicked()
     {
+        if (didDragSinceLastClick)
+        {
+            didDragSinceLastClick = false;
+            return;
+        }
+
         if (HandDisplay.Instance != null)
         {
             HandDisplay.Instance.OnCardClicked(this);
+        }
+    }
+
+    public void OnBeginDrag(PointerEventData eventData)
+    {
+        didDragSinceLastClick = true;
+        SetDraggingVisual(true);
+        if (button != null)
+        {
+            buttonWasInteractable = button.interactable;
+            button.interactable = false;
+        }
+
+        HandDisplay.Instance?.OnCardBeginDrag(this, eventData);
+    }
+
+    public void OnDrag(PointerEventData eventData)
+    {
+        HandDisplay.Instance?.OnCardDrag(this, eventData);
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        HandDisplay.Instance?.OnCardEndDrag(this, eventData);
+
+        SetDraggingVisual(false);
+        if (button != null)
+        {
+            button.interactable = buttonWasInteractable;
         }
     }
 

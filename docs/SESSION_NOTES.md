@@ -1,0 +1,138 @@
+# Session Notes – Session Memory (SM)
+
+> Rolling log of what happened in each focused work session.<br>
+> Append-only. Do not delete past sessions.
+
+---
+
+## Example Entry
+
+### 2025-12-01
+
+**Participants:** User,VS Code Agent, Chatgpt
+**Branch:** main
+
+### What we worked on
+- Set up local MCP-style context system.
+- Added session helper scripts and VS Code tasks.
+- Defined PROJECT_CONTEXT / NOW / SESSION_NOTES workflow.
+
+### Files touched
+- docs/PROJECT_CONTEXT.md
+- docs/NOW.md
+- docs/SESSION_NOTES.md
+- docs/AGENT_SESSION_PROTOCOL.md
+- docs/MCP_LOCAL_DESIGN.md
+- scripts/session-helper.ps1
+- scripts/commit-session.ps1
+- .vscode/tasks.json
+
+### Outcomes / Decisions
+- Established start/end session ritual.
+- Agents will maintain summaries and NOW.md.
+- This repo will be used as a public template.
+
+---
+
+## Session Template (Copy/Paste for each new session)
+## Recent Sessions (last 3-5)
+
+### 2025-12-18 (Session 2)
+
+**Participants:** User, Codex Agent
+**Branch:** main
+
+### What we worked on
+- Repo hygiene baseline for Unity (ignore/untrack generated folders; keep `ProjectSettings/` + `Packages/` tracked).
+- Progression rules: added `nonTutorialWins` tiering (Mid tier at 7+ wins), with Mid+ removing jokers and requiring suited runs (no suit-agnostic straight runs).
+- Gameplay/UI reliability: fixed run mode end-state so runs persist across wins/continues and only reset on loss or explicit restart.
+- UX upgrades: stable drag-to-reorder hand (smoothing, bounds clamp, placeholder highlight), expanded achievements (incl. “Overachiever”), and added a Main Menu that hosts Achievements + safe actions.
+- Main Menu polish: confirm-quit dialog with “run will resume” note when run mode is active; “Restart Run” and “Restart Game (Tutorial)” support.
+
+### Files touched
+- `Assets/Scripts/Managers/GameManager.cs`
+- `Assets/Scripts/UI/GameOverPanel.cs`
+- `Assets/Scripts/UI/MainMenuScreen.cs`
+- `Assets/Scripts/UI/AchievementsScreen.cs`
+- `Assets/Scripts/UI/HandDisplay.cs`
+- `Assets/Scripts/UI/CardDisplay.cs`
+- `Assets/Scripts/Progression/ProgressionService.cs`
+- `Assets/Scripts/Progression/PlayerProfile.cs`
+- `Assets/Scripts/Progression/RunModeService.cs`
+- `Assets/Scripts/Progression/Achievements/*`
+- `Assets/Scripts/Patterns/*`
+- `.gitignore`, `Packages/manifest.json`, `Packages/packages-lock.json`, `ProjectSettings/*`
+
+### Outcomes / Decisions
+- Prefer “stable over snappy” for hand drag/reorder; no “shuffle hand” feature.
+- Mid game begins at 7 non-tutorial wins; Mid+ removes jokers and requires suited runs.
+- Run mode persists through wins/continues and across quit/resume; reset only on run failure or explicit restart/new run.
+- Achievements are accessed from Main Menu; Quit requires confirmation and explains saved state + run resume behavior.
+
+### 2025-12-18
+
+**Participants:** User, Codex Agent
+**Branch:** main
+
+### What we worked on
+- Repurposed the local MCP memory docs to reflect Project Delta (Unity card-puzzle repo) instead of the local-mcp-context-kit template.
+- Updated `docs/Repo_Structure.md` and clarified the naming split between `SESSION_NOTES.md` (game notes) and `docs/SESSION_NOTES.md` (agent session log).
+
+### Notes / Decisions
+- Canonical gameplay/progression plan lives in `SPRINTS.md`, `SESSION_NOTES.md`, and `levelprogressioninto.md`.
+- Immediate objective includes repo hygiene (Unity-generated folders) + validating tutorial progression and deterministic deck behavior.
+
+### 2025-12-01 (Session 2)
+
+**Participants:** User, Codex Agent
+**Branch:** main
+
+### What we worked on
+- Re-read PROJECT_CONTEXT, NOW, and SESSION_NOTES to prep session handoff.
+- Tightened the summaries in PROJECT_CONTEXT.md and NOW.md to mirror the current project definition.
+- Reconfirmed the immediate tasks: polish docs, add an example project, and test on a real repo.
+
+### Files touched
+- docs/PROJECT_CONTEXT.md
+- docs/NOW.md
+- docs/SESSION_NOTES.md
+
+### Outcomes / Decisions
+- Locked the near-term plan around doc polish, example walkthrough, and single-repo validation.
+- Still waiting on any additional stakeholder inputs before expanding scope.
+
+### 2025-12-01
+
+**Participants:** User, Codex Agent
+**Branch:** main
+
+### What we worked on
+- Reviewed the memory docs to confirm expectations for PROJECT_CONTEXT, NOW, and SESSION_NOTES.
+- Updated NOW.md and PROJECT_CONTEXT.md summaries to reflect that real project data is still pending.
+- Highlighted the need for stakeholder inputs before populating concrete tasks or deliverables.
+
+### Files touched
+- docs/PROJECT_CONTEXT.md
+- docs/NOW.md
+- docs/SESSION_NOTES.md
+
+### Outcomes / Decisions
+- Documented that the repo currently serves as a template awaiting real project data.
+- Set the short-term focus on collecting actual objectives and backlog details.
+
+### [DATE – e.g. 2025-12-02]
+
+**Participants:** [You, VS Code Agent, other agents]
+**Branch:** [main / dev / feature-x]
+
+### What we worked on
+- (fill in)
+
+### Files touched
+- (fill in)
+
+### Outcomes / Decisions
+-
+
+## Archive (do not load by default)
+...

@@ -133,6 +133,8 @@ public class GameOverPanel : MonoBehaviour
     {
         if (!ValidateReferences()) return;
 
+        MainMenuScreen.EnsureExists().SetMenuButtonVisible(false);
+
         EnsureStatsTextExists();
         ApplyStatsTextLayout();
 
@@ -191,10 +193,12 @@ public class GameOverPanel : MonoBehaviour
     {
         if (!ValidateReferences()) return;
 
+        MainMenuScreen.EnsureExists().SetMenuButtonVisible(false);
+
         EnsureStatsTextExists();
         ApplyStatsTextLayout();
 
-        bool isRunMode = GameManager.Instance != null && GameManager.Instance.IsRunModeActive;
+        bool isRunMode = GameManager.Instance != null && GameManager.Instance.LastEndWasRunMode;
 
         titleText.text = isRunMode ? "RUN ENDED" : "LEVEL FAILED";
         titleText.color = Color.red;
@@ -377,6 +381,7 @@ public class GameOverPanel : MonoBehaviour
     private void HandleGameStarted(GameState newGame)
     {
         cachedGameState = newGame;
+        MainMenuScreen.EnsureExists().SetMenuButtonVisible(true);
         HidePanel();
     }
 
@@ -403,7 +408,7 @@ public class GameOverPanel : MonoBehaviour
         var gm = GameManager.Instance;
         var previousGame = gm != null ? gm.CurrentGame : null;
 
-        if (gm != null && gm.IsRunModeActive && !lastIsWin)
+        if (gm != null && gm.LastEndWasRunMode && !lastIsWin)
         {
             gm.StartRunMode();
         }

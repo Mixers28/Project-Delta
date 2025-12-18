@@ -520,4 +520,51 @@ public class PatternTests
         
         Assert.AreEqual(1, goals[0].current);
     }
+
+    [Test]
+    public void FourOfKindIsDetected()
+    {
+        var four = new FourOfKindPattern();
+        var cards = new List<Card>
+        {
+            new Card(Card.Suit.Hearts, Card.Rank.Seven),
+            new Card(Card.Suit.Spades, Card.Rank.Seven),
+            new Card(Card.Suit.Clubs, Card.Rank.Seven),
+            new Card(Card.Suit.Diamonds, Card.Rank.Seven)
+        };
+
+        Assert.IsTrue(four.Validate(cards));
+    }
+
+    [Test]
+    public void RoyalFlushIsDetected()
+    {
+        var rf = new RoyalFlushPattern();
+        var cards = new List<Card>
+        {
+            new Card(Card.Suit.Hearts, Card.Rank.Ten),
+            new Card(Card.Suit.Hearts, Card.Rank.Jack),
+            new Card(Card.Suit.Hearts, Card.Rank.Queen),
+            new Card(Card.Suit.Hearts, Card.Rank.King),
+            new Card(Card.Suit.Hearts, Card.Rank.Ace)
+        };
+
+        Assert.IsTrue(rf.Validate(cards));
+    }
+
+    [Test]
+    public void ThreeOfKindGoalCountsFourOfKind()
+    {
+        var goal = new Goal(Goal.GoalType.ThreeOfKind, 1);
+        var four = new FourOfKindPattern();
+        Assert.IsTrue(goal.MatchesPattern(four));
+    }
+
+    [Test]
+    public void FlushGoalCountsRoyalFlush()
+    {
+        var goal = new Goal(Goal.GoalType.Flush, 1);
+        var rf = new RoyalFlushPattern();
+        Assert.IsTrue(goal.MatchesPattern(rf));
+    }
 }

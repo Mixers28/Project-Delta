@@ -6,7 +6,6 @@
 [Bb]uilds/
 [Ll]ogs/
 [Uu]serSettings/
-[Pp]rojectsettings/
 
 # Generated project files
 *.csproj
@@ -21,9 +20,9 @@ ignore.conf
 
 # IDE stuff
 .vs/
-.vscode/
 .idea/
 .vd/project
+*.code-workspace
 
 # OS junk
 .DS_Store
@@ -31,4 +30,3 @@ Thumbs.db
 
 # Unity package cache (contains large binary files)
 /Library/PackageCache/
-/Packages/

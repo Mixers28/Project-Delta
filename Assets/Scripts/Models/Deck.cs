@@ -117,6 +117,15 @@ public class Deck
         }
     }
 
+    public int RemoveJokers()
+    {
+        int before = drawPile.Count + discardPile.Count;
+        drawPile.RemoveAll(c => c.IsJoker);
+        discardPile.RemoveAll(c => c.IsJoker);
+        int after = drawPile.Count + discardPile.Count;
+        return before - after;
+    }
+
     public Card? DrawFromStock()
     {
         if (drawPile.Count == 0) return null;

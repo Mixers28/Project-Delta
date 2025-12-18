@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
@@ -9,6 +10,7 @@ public class GameManager : MonoBehaviour
     public GameState CurrentGame { get; private set; }
     public PatternValidator PatternValidator { get; private set; }
     public bool IsRunModeActive => RunModeService.IsActive;
+    public bool LastEndWasRunMode { get; private set; }
 
     [Header("Level Configuration")]
     [SerializeField] private LevelDefinition testLevelDefinition;
@@ -42,6 +44,7 @@ public class GameManager : MonoBehaviour
         Achievements = new AchievementsService(ProgressionService.Profile);
         AchievementToast.EnsureExists();
         AchievementsScreen.EnsureExists();
+        MainMenuScreen.EnsureExists();
         StartupScreen.EnsureExists();
         PostTutorialScreen.EnsureExists();
         Achievements.OnUnlocked += HandleAchievementUnlocked;
@@ -101,6 +104,12 @@ public class GameManager : MonoBehaviour
             return;
         }
 
+        // Explicit restart counts as ending the current run; start a fresh one.
+        if (RunModeService.IsActive)
+        {
+            RunModeService.StartNewRun();
+        }
+
         // On fail+retry, reset progression to stage 1 of the first level
         progressionStep = 0;
         currentLevelIndex = 0;
@@ -141,7 +150,7 @@ public class GameManager : MonoBehaviour
 
         var tutorialDef = TutorialLevelFactory.Create(ProgressionService.Profile.TutorialStep);
 
-        Debug.Log($"[Progression] tutorialStep={ProgressionService.Profile.TutorialStep} tutorialActive={ProgressionService.IsTutorialActive} (tutorial)");
+        Debug.Log($"[Progression] tutorialStep={ProgressionService.Profile.TutorialStep} tutorialActive={ProgressionService.IsTutorialActive} nonTutorialWins={ProgressionService.NonTutorialWins} ruleTier={ProgressionService.CurrentRuleTier} (tutorial)");
         InitializeNewGame(tutorialDef);
     }
 
@@ -167,7 +176,7 @@ public class GameManager : MonoBehaviour
         currentLevelIndex = Mathf.Clamp(atIndex, 0, loadedLevels.Length - 1);
         var levelDef = BuildRuntimeVariant(loadedLevels[currentLevelIndex], progressionStep);
 
-        Debug.Log($"[Progression] tutorialStep={ProgressionService.Profile.TutorialStep} tutorialActive={ProgressionService.IsTutorialActive} levelIndex={currentLevelIndex} progressionStep={progressionStep}");
+        Debug.Log($"[Progression] tutorialStep={ProgressionService.Profile.TutorialStep} tutorialActive={ProgressionService.IsTutorialActive} nonTutorialWins={ProgressionService.NonTutorialWins} ruleTier={ProgressionService.CurrentRuleTier} levelIndex={currentLevelIndex} progressionStep={progressionStep}");
         InitializeNewGame(levelDef);
     }
 
@@ -179,27 +188,46 @@ public class GameManager : MonoBehaviour
             Achievements.OnUnlocked += HandleAchievementUnlocked;
         }
 
+        var ruleTier = ProgressionService.CurrentRuleTier;
         CurrentGame = new GameState(levelDefinition);
+        CurrentGame.ApplyRuleTier(ruleTier);
 
         // Configure pattern rules per-level (Sprint 3: AllowedPatterns).
         bool hasGating = levelDefinition != null && levelDefinition.AllowedPatterns != null && levelDefinition.AllowedPatterns.Count > 0;
         AllowedPatterns = hasGating ? new System.Collections.Generic.List<PatternId>(levelDefinition.AllowedPatterns) : System.Array.Empty<PatternId>();
 
         // If the level doesn't explicitly gate patterns, hide suited runs until they're unlocked.
+        var excludedList = new System.Collections.Generic.List<PatternId>();
+
+        // Mid+ tiers: no straight (suit-agnostic) runs; suited runs only.
+        if (ruleTier >= RuleTier.Mid)
+        {
+            excludedList.Add(PatternId.StraightRun3);
+            excludedList.Add(PatternId.StraightRun4);
+            excludedList.Add(PatternId.StraightRun5);
+        }
+
         System.Collections.Generic.IEnumerable<PatternId> excluded = null;
         if (!hasGating && !ProgressionService.Profile.HasFeature(RunModeService.FeatureSuitedRuns))
         {
-            excluded = new[]
+            excludedList.AddRange(new[]
             {
                 PatternId.SuitedRun3,
                 PatternId.SuitedRun4,
                 PatternId.SuitedRun5
-            };
+            });
         }
 
+        if (excludedList.Count > 0)
+        {
+            excluded = excludedList;
+        }
+
+        bool allowJokersInSelection = ruleTier < RuleTier.Mid;
+
         PatternValidator = hasGating
-            ? new PatternValidator(AllowedPatterns, excludedPatterns: null)
-            : new PatternValidator(allowedPatterns: null, excludedPatterns: excluded);
+            ? new PatternValidator(AllowedPatterns, excludedPatterns: excluded, allowJokersInSelection: allowJokersInSelection)
+            : new PatternValidator(allowedPatterns: null, excludedPatterns: excluded, allowJokersInSelection: allowJokersInSelection);
 
         BindGameEvents(CurrentGame);
 
@@ -235,7 +263,10 @@ public class GameManager : MonoBehaviour
         if (!success)
         {
             Debug.LogError("Failed to play pattern");
+            return;
         }
+
+        Achievements?.OnPatternPlayedDetailed(bestPattern.Value.pattern, selectedCards, CurrentGame.Goals);
     }
 
     public void DrawCard(bool fromDiscard = false)
@@ -312,6 +343,17 @@ public class GameManager : MonoBehaviour
         AchievementToast.Show($"Achievement Unlocked: {def.name}", $"+{def.rewardCoins} coins");
     }
 
+    public void ReinitializeProfileBoundServices()
+    {
+        if (Achievements != null)
+        {
+            Achievements.OnUnlocked -= HandleAchievementUnlocked;
+        }
+
+        Achievements = new AchievementsService(ProgressionService.Profile);
+        Achievements.OnUnlocked += HandleAchievementUnlocked;
+    }
+
     private void HandleGoalUpdated(Goal goal)
     {
         Debug.Log($"Goal updated: {goal.DisplayText}");
@@ -368,6 +410,7 @@ public class GameManager : MonoBehaviour
             Debug.Log("<color=cyan>=== LEVEL COMPLETE! ===</color>");
             Debug.Log($"Final Score: {CurrentGame.Score}");
 
+            LastEndWasRunMode = RunModeService.IsActive;
             if (RunModeService.IsActive)
             {
                 RunModeService.RecordLevelWin(CurrentGame.Score);
@@ -380,6 +423,7 @@ public class GameManager : MonoBehaviour
             if (!ProgressionService.IsTutorialActive)
             {
                 var profile = ProgressionService.Profile;
+                ProgressionService.RecordNonTutorialWin();
                 profile.highestLevelCompleted += 1;
                 if (!profile.HasFeature(RunModeService.FeatureSuitedRuns) && profile.highestLevelCompleted >= 5)
                 {
@@ -398,6 +442,7 @@ public class GameManager : MonoBehaviour
             Debug.Log("<color=red>=== LEVEL FAILED ===</color>");
             Debug.Log("Out of moves!");
 
+            LastEndWasRunMode = RunModeService.IsActive;
             if (RunModeService.IsActive)
             {
                 RunModeService.RecordRunEnd();
@@ -485,6 +530,7 @@ public class GameManager : MonoBehaviour
     private List<GoalDefinition> BuildVariantGoals(LevelDefinition baseDefinition, int difficultyStep, int totalMoves)
     {
         var goals = new List<GoalDefinition>();
+        var ruleTier = ProgressionService.CurrentRuleTier;
 
         var baseGoals = baseDefinition.goals != null && baseDefinition.goals.Count > 0
             ? baseDefinition.goals
@@ -492,7 +538,8 @@ public class GameManager : MonoBehaviour
 
         foreach (var goal in baseGoals)
         {
-            int bonus = UnityEngine.Random.Range(0, 2 + Mathf.Min(difficultyStep, 2));
+            // Prefer variety/constraints over steadily inflating counts.
+            int bonus = UnityEngine.Random.Range(0, 1 + Mathf.Min(difficultyStep, 1));
             var required = Mathf.Max(1, goal.required + bonus);
             required = CapToMoves(required, totalMoves);
 
@@ -503,21 +550,25 @@ public class GameManager : MonoBehaviour
             });
         }
 
-        // Add an extra challenge goal as difficulty increases
-        if (difficultyStep >= 1)
+        // Add one extra goal occasionally (variety), but keep the goal list small.
+        if (difficultyStep >= 1 && goals.Count < 3)
         {
-            var extraType = GetRandomGoalType();
-            int required = Mathf.Max(1, 1 + difficultyStep / 2 + UnityEngine.Random.Range(0, 2));
+            var existing = new HashSet<Goal.GoalType>(goals.Select(g => g.goalType));
+            var extraType = GetRandomGoalType(existing, ruleTier);
+            if (extraType.HasValue)
+            {
+                int required = Mathf.Max(1, 1 + UnityEngine.Random.Range(0, 1));
             required = CapToMoves(required, totalMoves);
-            goals.Add(new GoalDefinition { goalType = extraType, required = required });
+                goals.Add(new GoalDefinition { goalType = extraType.Value, required = required });
+            }
         }
 
         return goals;
     }
 
-    private Goal.GoalType GetRandomGoalType()
+    private Goal.GoalType? GetRandomGoalType(HashSet<Goal.GoalType> exclude, RuleTier ruleTier)
     {
-        // Rotate through goal types except TotalScore to keep variety
+        // Rotate through goal types except TotalScore to keep variety.
         var candidates = new List<Goal.GoalType>
         {
             Goal.GoalType.Pair,
@@ -525,9 +576,26 @@ public class GameManager : MonoBehaviour
             Goal.GoalType.Run3,
             Goal.GoalType.Run4,
             Goal.GoalType.Run5,
+            Goal.GoalType.SuitSet3Plus,
+            Goal.GoalType.ColorSet3Plus,
             Goal.GoalType.Flush,
             Goal.GoalType.FullHouse
         };
+
+        // Mid+ tiers: avoid straight-run goal types (suited runs only).
+        if (ruleTier >= RuleTier.Mid)
+        {
+            candidates.Remove(Goal.GoalType.StraightRun3);
+            candidates.Remove(Goal.GoalType.StraightRun4);
+            candidates.Remove(Goal.GoalType.StraightRun5);
+        }
+
+        if (exclude != null && exclude.Count > 0)
+        {
+            candidates = candidates.Where(c => !exclude.Contains(c)).ToList();
+        }
+
+        if (candidates.Count == 0) return null;
 
         int index = UnityEngine.Random.Range(0, candidates.Count);
         return candidates[index];
