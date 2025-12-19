@@ -26,8 +26,10 @@ ignore.conf
 .DS_Store
 Thumbs.db
 
+# Local installer artifacts
+git-lfs.exe
+unins000.dat
+unins000.exe
+
 # Unity package cache (contains large binary files)
 /Library/PackageCache/
-
-# Build outputs
-build/
