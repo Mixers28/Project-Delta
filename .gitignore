@@ -28,3 +28,6 @@ Thumbs.db
 
 # Unity package cache (contains large binary files)
 /Library/PackageCache/
+
+# Build outputs
+build/
