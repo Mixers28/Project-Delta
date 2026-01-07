@@ -35,7 +35,81 @@
 ---
 
 ## Session Template (Copy/Paste for each new session)
+
+---
+
 ## Recent Sessions (last 3-5)
+
+### 2026-01-07 (Web Phase 1)
+
+**Participants:** User, Reviewer/Architect/Coder Agent
+**Branch:** web/webgl-export (new)
+
+### What we worked on
+
+- **Created `web/webgl-export` branch** from main as permanent parallel branch for WebGL experimentation.
+- **Designed and approved architecture spec** (`docs/spec.md`): Railway backend + Supabase PostgreSQL + Vercel frontend.
+- **Implemented Phase 1: Backend Scaffold**
+  - Express.js server (`backend/src/server.js`) with 5 API endpoints: `/auth/register`, `/api/profile` (GET/POST), `/health`, `/api/runs` (placeholder)
+  - JWT-based authentication with device fingerprint support for anonymous users
+  - Supabase PostgreSQL schema (`backend/src/db/schema.sql`): users, game_profiles, run_history tables
+  - Database connection pooling via `pg` library; CORS configured for Vercel domain
+  - Railway deployment config (`backend/railway.json`) with auto-deploy
+  - Vercel config (`vercel.json`) with CDN caching for WebGL assets
+- **Created comprehensive documentation**
+  - `web/README.md` – overview, tech stack, features, troubleshooting
+  - `web/DEPLOYMENT.md` – step-by-step setup guide (Railway → Supabase → Vercel)
+  - `web/BUILD_INSTRUCTIONS.md` – WebGL build configuration, local testing, performance profiling
+  - `docs/spec.md` – full 400+ line architecture specification with decisions, timelines, rollback plans
+- **Updated `.gitignore`** to handle web-specific files (web-build/, backend/node_modules/, .env, etc)
+- **Cleaned repository** – removed untracked iOS build artifacts; confirmed clean working tree
+
+### Files touched
+
+- `backend/src/server.js` (450+ lines, fully commented)
+- `backend/src/db/schema.sql` (complete schema ready for Supabase)
+- `backend/package.json` (Node 18+, Express, JWT, pg, CORS, dotenv)
+- `backend/railway.json` (Railway deployment config)
+- `backend/.env.example` (template for env vars)
+- `vercel.json` (Vercel CDN caching config)
+- `web/README.md` (overview + quick start)
+- `web/DEPLOYMENT.md` (step-by-step setup)
+- `web/BUILD_INSTRUCTIONS.md` (WebGL build guide)
+- `docs/spec.md` (architecture specification)
+- `docs/PROJECT_CONTEXT.md` (added Section 7: Web Variant)
+- `docs/NOW.md` (updated to track both main + web branches)
+- `.gitignore` (updated for web development)
+
+### Outcomes / Decisions
+
+✅ **Tech Stack Finalized:**
+- Backend: Node.js 18+ + Express.js (Railway)
+- Database: Supabase PostgreSQL (not Railway postgres)
+- Frontend: Vercel CDN + auto-deploy (not serving from Railway)
+- Authentication: Anonymous via device fingerprint + optional email (Phase 2)
+- Performance: 60+ FPS target (aggressive; optimize if < 50)
+- Mobile: Deferred to Phase 2
+
+✅ **Phase 1 Complete:**
+- Backend scaffold fully functional and documented
+- API endpoints ready for testing (can test locally with `npm run dev`)
+- Supabase schema ready to import
+- Deployment configs ready for Railway and Vercel
+
+🔲 **Phase 2 (Next):**
+- Create C# web persistence services (WebPersistenceManager, WebAuthManager, WebProfileSyncService)
+- Create LoginScreen.cs for anonymous auth UI
+- Configure GameManager for WebGL conditional compilation
+- Create WebConfig.json template
+- Local testing + FPS profiling
+
+**Key Files for Reference:**
+- API contract: [backend/src/server.js](backend/src/server.js) (fully documented endpoints)
+- Database schema: [backend/src/db/schema.sql](backend/src/db/schema.sql)
+- Setup guide: [web/DEPLOYMENT.md](web/DEPLOYMENT.md)
+- Build guide: [web/BUILD_INSTRUCTIONS.md](web/BUILD_INSTRUCTIONS.md)
+
+---
 
 ### 2025-12-18 (Session 2)
 

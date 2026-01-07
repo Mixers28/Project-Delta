@@ -5,12 +5,21 @@
 
 <!-- SUMMARY_START -->
 **Summary (auto-maintained by Agent):**
-- Unity 2022.3.62f3 card-based puzzle game (“Project Delta”) focused on pattern-play, goals, and move-limited levels.
-- Core architecture: GameManager orchestration → GameState rules/events → PatternValidator + IPattern set → progression services (ProgressionService, tutorial, achievements, run mode).
-- Progression model: 7-step tutorial advances on wins only; post-tutorial unlocks include Run Mode and later Suited Runs (locked behind early real-game wins), with rules tiering driven by `nonTutorialWins` (Mid tier at 7+ wins).
-- Levels: loaded from inspector sequence or Assets/Resources/Levels/, with runtime difficulty variants via progressionStep.
-- Persistence: PlayerPrefs-backed PlayerProfile (tutorial step, unlocks, run stats, achievements/coins).
-- Meta UX: Main Menu overlay hosts Achievements and safe actions (Quit+Save with confirm, Restart Run post-tutorial, Restart Game to replay tutorial).
+- **Main branch (`main`):** Unity 2022.3.62f3 native desktop card-puzzle game ("Project Delta") focused on pattern-play, goals, and move-limited levels.
+  - Core architecture: GameManager orchestration → GameState rules/events → PatternValidator + IPattern set → progression services (ProgressionService, tutorial, achievements, run mode).
+  - Progression model: 7-step tutorial advances on wins only; post-tutorial unlocks include Run Mode and later Suited Runs (locked behind early real-game wins), with rules tiering driven by `nonTutorialWins` (Mid tier at 7+ wins).
+  - Levels: loaded from inspector sequence or Assets/Resources/Levels/, with runtime difficulty variants via progressionStep.
+  - Persistence: PlayerPrefs-backed PlayerProfile (tutorial step, unlocks, run stats, achievements/coins).
+  - Meta UX: Main Menu overlay hosts Achievements and safe actions (Quit+Save with confirm, Restart Run post-tutorial, Restart Game to replay tutorial).
+
+- **Web branch (`web/webgl-export`):** Parallel WebGL export variant with cloud persistence (Railway API + Supabase PostgreSQL, hosted on Vercel).
+  - Same gameplay as main, compiled to WebGL for browser.
+  - Backend: Express.js API on Railway (auth: device fingerprint → JWT; profile sync; run history).
+  - Database: Supabase PostgreSQL (users, game_profiles, run_history tables).
+  - Frontend: Vercel CDN + auto-deploy.
+  - Phase 1 (Complete): Backend scaffold, API endpoints, Supabase schema, deployment configs.
+  - Phase 2 (Next): C# web persistence services, anonymous auth UI, 60 FPS optimization.
+  - Phase 3 (TBD): WebGL build, local testing, Vercel + Railway deployment.
 <!-- SUMMARY_END -->
 
 ---
@@ -74,9 +83,75 @@
 
 ---
 
-## 7. Change Log (High-Level Decisions)
+## 7. Web Variant (Branch: `web/webgl-export`)
+
+> Experimental parallel branch for WebGL browser deployment with cloud persistence.
+
+### Overview
+- **Goal:** Validate Project Delta as a playable WebGL game in browsers with cloud save functionality.
+- **Branch:** `web/webgl-export` (permanent, kept separate from `main`)
+- **Timeline:** Phase 1 ✅ Complete; Phase 2-3 in progress.
+
+### Architecture
+
+**Backend (Railway):**
+- Node.js + Express.js server
+- Endpoints:
+  - `POST /auth/register` – anonymous user creation via device fingerprint
+  - `GET/POST /api/profile` – fetch/save player progression (JWT required)
+  - `GET /health` – health check for monitoring
+- Database: Supabase PostgreSQL (users, game_profiles, run_history)
+- Deployment: Auto-deploy on push to `web/webgl-export`
+
+**Frontend (Vercel):**
+- WebGL build compiled from Unity (2022.3.62f3)
+- CDN delivery, auto-deploy on push
+- Target: 60+ FPS in Chrome, Firefox, Safari (desktop)
+
+**Persistence Flow:**
+1. Player visits Vercel URL → WebGL loads
+2. Browser auto-generates device fingerprint
+3. Game calls `POST /auth/register` → receives JWT token
+4. Player plays, wins levels
+5. `GameOver` event triggers `POST /api/profile` → backend saves state
+6. Browser refresh → fetch latest profile via `GET /api/profile`
+7. Game resumes from saved state
+
+### Phase Status
+
+| Phase | Status | Details |
+|-------|--------|---------|
+| **1: Infrastructure** | ✅ Complete | Backend scaffold, API endpoints, Supabase schema, Railway/Vercel configs |
+| **2: Integration** | 🔲 Next | C# web persistence services, LoginScreen UI, 60 FPS profiling |
+| **3: Build & Test** | 🔲 TBD | WebGL export, local testing, deployment validation |
+| **4: Validation** | 🔲 TBD | Profile sync, offline fallback, concurrent updates |
+| **5: Documentation** | 🔲 TBD | BUILD_INSTRUCTIONS.md, DEPLOYMENT.md finalization |
+
+### Key Decisions
+
+- **Authentication:** Anonymous + device fingerprint (email login deferred to Phase 2)
+- **Database:** Supabase PostgreSQL (independent from backend, better DX)
+- **Frontend Hosting:** Vercel (CDN, auto-deploy, no need to serve from Railway)
+- **Performance Target:** 60+ FPS (aggressive; optimize if below 50)
+- **Mobile:** Deferred to Phase 2 (desktop-first MVP)
+
+### Files & Documentation
+
+- **Backend:** `backend/src/server.js` (450+ lines, fully documented)
+- **Schema:** `backend/src/db/schema.sql` (ready for Supabase)
+- **Deployment:** `web/DEPLOYMENT.md` (step-by-step setup)
+- **Build Guide:** `web/BUILD_INSTRUCTIONS.md` (WebGL build + local testing)
+- **Architecture:** `docs/spec.md` (comprehensive spec)
+
+---
+
+## 8. Change Log (High-Level Decisions)
 
 Use this section for **big decisions** only:
 
+- `2026-01-07` – Approved web/webgl-export branch with Railway + Supabase + Vercel stack; Phase 1 complete.
+- `2026-01-07` – Decided on anonymous auth (device fingerprint) + optional email (Phase 2).
+- `2026-01-07` – Chose Supabase for database (independent, SQL flexibility, better than Railway postgres).
+- `2026-01-07` – Chose Vercel for frontend hosting (CDN, auto-deploy, cleaner than serving from Railway).
 - `YYYY-MM-DD` – Decided on X instead of Y.
 - `YYYY-MM-DD` – Switched primary deployment target to Z.
