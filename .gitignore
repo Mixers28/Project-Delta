@@ -33,3 +33,23 @@ unins000.exe
 
 # Unity package cache (contains large binary files)
 /Library/PackageCache/
+
+# WebGL web-build (web branch only)
+web-build/
+dist/
+
+# Backend node modules (web branch only)
+backend/node_modules/
+backend/.env
+backend/.env.local
+backend/npm-debug.log*
+
+# Vercel build output (web branch only)
+.vercel/
+.next/
+
+# IDE temp files
+*.swp
+*.swo
+*~
+.vscode/settings.json
