@@ -50,6 +50,11 @@ public class GameManager : MonoBehaviour
         Achievements.OnUnlocked += HandleAchievementUnlocked;
         EnsureUISetup();
         EnsureLevelsLoaded();
+
+#if UNITY_WEBGL
+        WebPersistenceManager.Initialize(this);
+        OnGameEnd += WebPersistenceManager.HandleGameEnd;
+#endif
     }
 
     private void Start()

@@ -39,6 +39,7 @@
 
    **Compression Format:**
    - Set to **Brotli** (best compression for build size)
+   - If hosting does not set `Content-Encoding: br`, enable **Decompression Fallback** in **Player Settings → Publishing Settings** for local testing or switch to **Gzip** / **Disabled** until headers are configured (see Step 7.2)
 
    **Debugging:**
    - Enable "Development Build" **only for local testing**
@@ -60,12 +61,12 @@
 
 ### 2.1 Build Output Path
 
-1. In Build Settings, set **Build path** to: `../web-build`
-   (Relative to project root, outside version control)
+1. In Build Settings, set **Build path** to: `web/build`
+   (Relative to project root)
 
 2. Create directory if needed:
    ```bash
-   mkdir -p web-build
+   mkdir -p web/build
    ```
 
 ### 2.2 Backend Configuration in Unity
@@ -87,6 +88,26 @@
    string apiUrl = config.apiUrl;
    #endif
    ```
+4. Persist `apiUrl` to browser storage under `api_url` (WebGL only) so the check in Step 7.4 works
+   - Create `Assets/Plugins/WebGL/Storage.jslib`:
+     ```javascript
+     mergeInto(LibraryManager.library, {
+       SetApiUrl: function (urlPtr) {
+         const url = UTF8ToString(urlPtr);
+         localStorage.setItem('api_url', url);
+       }
+     });
+     ```
+   - Call it from C#:
+     ```csharp
+     #if UNITY_WEBGL
+     [DllImport("__Internal")] private static extern void SetApiUrl(string url);
+     TextAsset configFile = Resources.Load<TextAsset>("Config/WebConfig");
+     var config = JsonConvert.DeserializeObject<WebConfig>(configFile.text);
+     SetApiUrl(config.apiUrl);
+     #endif
+     ```
+   - Ensure the C# file has `using System.Runtime.InteropServices;`
 
 ---
 
@@ -95,11 +116,11 @@
 ### 3.1 Build Locally
 
 1. In Build Settings, click **Build** (not "Build & Run" yet)
-2. Select `web-build` folder
+2. Select `web/build` folder
 3. Unity will compile and export (takes 5–15 minutes depending on project size)
 4. Wait for completion. Build folder should contain:
    ```
-   web-build/
+   web/build/
    ├── Build/                  (WebGL runtime files)
    ├── TemplateData/           (HTML template, CSS, JS)
    ├── index.html              (Entry point)
@@ -110,7 +131,7 @@
 
 1. Run command:
    ```bash
-   du -sh web-build
+   du -sh web/build
    ```
 2. **Target:** < 100 MB uncompressed, < 30 MB gzipped
 3. If too large:
@@ -125,7 +146,7 @@
 ### 4.1 Start Local HTTP Server
 
 ```bash
-cd web-build
+cd web/build
 python3 -m http.server 8000
 ```
 
@@ -249,7 +270,7 @@ Project Delta API running on http://localhost:3000
 ### 6.2 Measure Release Build Size
 
 ```bash
-du -sh web-build
+du -sh web/build
 # Should be < 100 MB
 ```
 
@@ -264,22 +285,57 @@ If too large, check:
 
 ### 7.1 Prepare for Upload
 
-1. Ensure `web-build/` is **not** in `.gitignore` on `web/webgl-export` branch
+1. Ensure `web/build/` is **not** in `.gitignore` on `web/webgl-export` branch
 2. Commit and push:
    ```bash
-   git add web-build/
+   git add web/build/
    git commit -m "WebGL release build"
    git push origin web/webgl-export
    ```
 
-### 7.2 Verify Auto-Deploy
+### 7.2 Configure Brotli Headers (Vercel)
+
+If you are serving `.br` files, you must send `Content-Encoding: br` and the right `Content-Type`.
+
+1. Add `vercel.json` in the Vercel project root (this repo includes `web/vercel.json` for a `web/` project root; move/merge into root `vercel.json` if your Vercel root is the repository):
+   ```json
+   {
+     "headers": [
+       {
+         "source": "/Build/(.*)\\.wasm\\.br",
+         "headers": [
+           { "key": "Content-Type", "value": "application/wasm" },
+           { "key": "Content-Encoding", "value": "br" }
+         ]
+       },
+       {
+         "source": "/Build/(.*)\\.js\\.br",
+         "headers": [
+           { "key": "Content-Type", "value": "application/javascript" },
+           { "key": "Content-Encoding", "value": "br" }
+         ]
+       },
+       {
+         "source": "/Build/(.*)\\.data\\.br",
+         "headers": [
+           { "key": "Content-Type", "value": "application/octet-stream" },
+           { "key": "Content-Encoding", "value": "br" }
+         ]
+       }
+     ]
+   }
+   ```
+
+2. Re-deploy after adding headers.
+
+### 7.3 Verify Auto-Deploy
 
 1. Visit Vercel dashboard
 2. Should see build in progress
 3. Once complete, visit https://project-delta-web.vercel.app
 4. Test end-to-end (register, play, save)
 
-### 7.3 Verify Backend Connection
+### 7.4 Verify Backend Connection
 
 1. In browser console:
    ```javascript
@@ -358,4 +414,3 @@ If too large, check:
 - **WebGL Performance:** https://docs.unity3d.com/Manual/webgl-performance.html
 - **Chrome DevTools:** https://developer.chrome.com/docs/devtools/
 - **Vercel Deployment:** https://vercel.com/docs
-
