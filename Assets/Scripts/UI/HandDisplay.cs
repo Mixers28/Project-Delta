@@ -30,6 +30,7 @@ public class HandDisplay : MonoBehaviour
     private GridLayoutGroup handGrid;
     private Canvas rootCanvas;
     private float dragBaselineY;
+    private Vector2 dragPointerOffset;
     [Header("Drag Reorder")]
     [SerializeField] private float dragFollowTime = 0.12f;
     [SerializeField] private float maxDragSpeed = 4500f;
@@ -182,6 +183,19 @@ public class HandDisplay : MonoBehaviour
         if (cardRt != null)
         {
             dragBaselineY = cardRt.anchoredPosition.y + dragLiftOffset;
+        }
+        dragPointerOffset = Vector2.zero;
+        var containerRt = handContainer as RectTransform;
+        if (containerRt != null && eventData != null && cardRt != null)
+        {
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                containerRt,
+                eventData.position,
+                GetEventCamera(eventData),
+                out var localPoint))
+            {
+                dragPointerOffset = cardRt.anchoredPosition - localPoint;
+            }
         }
         if (dimOtherCardsWhileDragging)
         {
@@ -356,7 +370,7 @@ public class HandDisplay : MonoBehaviour
 
                 float baselineY = dragBaselineY;
 
-                var desired = localPoint;
+                var desired = localPoint + dragPointerOffset;
                 desired.y = Mathf.Clamp(desired.y, baselineY - scaledBand, baselineY + scaledBand);
 
                 desired = ClampAnchoredPositionToContainer(containerRt, rt, desired);
@@ -436,7 +450,7 @@ public class HandDisplay : MonoBehaviour
 
         if (handGrid != null)
         {
-            int gridIndex = GetGridSiblingIndex(containerRt, localPoint, layoutChildCount);
+            int gridIndex = GetGridSiblingIndex(containerRt, localPoint + dragPointerOffset, layoutChildCount);
             if (draggingPlaceholder.transform.GetSiblingIndex() != gridIndex)
             {
                 draggingPlaceholder.transform.SetSiblingIndex(gridIndex);
@@ -444,7 +458,7 @@ public class HandDisplay : MonoBehaviour
             return;
         }
 
-        float draggedX = localPoint.x;
+        float draggedX = localPoint.x + dragPointerOffset.x;
         int currentIndex = draggingPlaceholder.transform.GetSiblingIndex();
         int newIndex = layoutChildCount;
 
