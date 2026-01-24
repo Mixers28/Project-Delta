@@ -349,10 +349,15 @@ public class HandDisplay : MonoBehaviour
             var rt = draggingCard.transform as RectTransform;
             if (rt != null)
             {
+                float scaleFactor = GetUIScaleFactor();
+                float scaledLift = dragLiftOffset / scaleFactor;
+                float scaledBand = dragYBand / scaleFactor;
+                float scaledMaxSpeed = maxDragSpeed / scaleFactor;
+
                 float baselineY = dragBaselineY;
 
                 var desired = localPoint;
-                desired.y = Mathf.Clamp(desired.y, baselineY - dragYBand, baselineY + dragYBand);
+                desired.y = Mathf.Clamp(desired.y, baselineY - scaledBand, baselineY + scaledBand);
 
                 desired = ClampAnchoredPositionToContainer(containerRt, rt, desired);
                 rt.anchoredPosition = Vector2.SmoothDamp(
@@ -360,7 +365,7 @@ public class HandDisplay : MonoBehaviour
                     desired,
                     ref dragVelocity,
                     Mathf.Max(0.01f, dragFollowTime),
-                    maxDragSpeed,
+                    scaledMaxSpeed,
                     Time.unscaledDeltaTime);
             }
         }
@@ -487,6 +492,16 @@ public class HandDisplay : MonoBehaviour
         }
 
         return null;
+    }
+
+    private float GetUIScaleFactor()
+    {
+        if (rootCanvas == null)
+        {
+            rootCanvas = GetComponentInParent<Canvas>();
+        }
+
+        return Mathf.Max(0.01f, rootCanvas != null ? rootCanvas.scaleFactor : 1f);
     }
 
     private int GetLayoutChildCount()
