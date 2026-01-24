@@ -4,6 +4,7 @@
 [Oo]bj/
 [Ll]ogs/
 [Uu]serSettings/
+build/
 
 # Generated project files
 *.csproj
@@ -53,3 +54,6 @@ backend/npm-debug.log*
 *.swo
 *~
 .vscode/settings.json
+
+# Deprecated repo (Godot)
+godot/
