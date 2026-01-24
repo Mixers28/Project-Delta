@@ -450,7 +450,8 @@ public class HandDisplay : MonoBehaviour
 
         if (handGrid != null)
         {
-            int gridIndex = GetGridSiblingIndex(containerRt, localPoint + dragPointerOffset, layoutChildCount);
+            // Use raw pointer position for grid indexing so row changes aren't harder than the finger movement.
+            int gridIndex = GetGridSiblingIndex(containerRt, localPoint, layoutChildCount);
             if (draggingPlaceholder.transform.GetSiblingIndex() != gridIndex)
             {
                 draggingPlaceholder.transform.SetSiblingIndex(gridIndex);

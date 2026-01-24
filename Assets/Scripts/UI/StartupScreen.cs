@@ -63,6 +63,11 @@ public class StartupScreen : MonoBehaviour
         onStart = onStartAction;
         Freeze();
 
+        if (overlayCanvas != null)
+        {
+            overlayCanvas.enabled = true;
+        }
+
         overlayGroup.alpha = 0f;
         overlayGroup.interactable = true;
         overlayGroup.blocksRaycasts = true;
@@ -130,6 +135,11 @@ public class StartupScreen : MonoBehaviour
             splashPanel.gameObject.SetActive(false);
             introPanel.gameObject.SetActive(false);
         }
+
+        if (immediate && overlayCanvas != null)
+        {
+            overlayCanvas.enabled = false;
+        }
     }
 
     private void OnStartClicked()
@@ -177,6 +187,7 @@ public class StartupScreen : MonoBehaviour
         overlayCanvas = canvasGo.AddComponent<Canvas>();
         overlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
         overlayCanvas.sortingOrder = 850;
+        overlayCanvas.enabled = false;
 
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -371,7 +382,7 @@ public class StartupScreen : MonoBehaviour
             backdrop.color = new Color(1f, 1f, 1f, 0.65f);
 
             var backdropFitter = backdropGo.AddComponent<AspectRatioFitter>();
-            backdropFitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            backdropFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             backdropFitter.aspectRatio = aspect;
 
             var mainGo = new GameObject("Main");
