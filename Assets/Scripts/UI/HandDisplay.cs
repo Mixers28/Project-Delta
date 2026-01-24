@@ -431,10 +431,10 @@ public class HandDisplay : MonoBehaviour
 
         if (handGrid != null)
         {
-            int newIndex = GetGridSiblingIndex(containerRt, localPoint, layoutChildCount);
-            if (draggingPlaceholder.transform.GetSiblingIndex() != newIndex)
+            int gridIndex = GetGridSiblingIndex(containerRt, localPoint, layoutChildCount);
+            if (draggingPlaceholder.transform.GetSiblingIndex() != gridIndex)
             {
-                draggingPlaceholder.transform.SetSiblingIndex(newIndex);
+                draggingPlaceholder.transform.SetSiblingIndex(gridIndex);
             }
             return;
         }
