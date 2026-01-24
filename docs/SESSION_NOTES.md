@@ -9,7 +9,7 @@
 
 ### 2025-12-01
 
-**Participants:** User,VS Code Agent, Chatgpt
+**Participants:** User, VS Code Agent, Chatgpt
 **Branch:** main
 
 ### What we worked on
@@ -35,7 +35,39 @@
 ---
 
 ## Session Template (Copy/Paste for each new session)
+
+### [DATE – e.g. 2025-12-02]
+
+**Participants:** [You, VS Code Agent, other agents]
+**Branch:** [main / dev / feature-x]
+
+### What we worked on
+- (fill in)
+
+### Files touched
+- (fill in)
+
+### Outcomes / Decisions
+-
+
 ## Recent Sessions (last 3-5)
+
+### 2026-01-24
+
+**Participants:** User, Codex Agent
+**Branch:** main
+
+### What we worked on
+- Investigated mobile hand drag jitter; found HandContainer uses GridLayoutGroup (no ContentSizeFitter).
+- Implemented grid-aware placeholder indexing with raw pointer input and stable drag baseline to reduce jitter.
+
+### Files touched
+- `Assets/Scripts/UI/HandDisplay.cs`
+- `docs/NOW.md`
+- `docs/SESSION_NOTES.md`
+
+### Outcomes / Decisions
+- Treat hand reorder as grid-based; avoid smoothed-position placeholder logic on mobile.
 
 ### 2025-12-18 (Session 2)
 
@@ -119,20 +151,6 @@
 ### Outcomes / Decisions
 - Documented that the repo currently serves as a template awaiting real project data.
 - Set the short-term focus on collecting actual objectives and backlog details.
-
-### [DATE – e.g. 2025-12-02]
-
-**Participants:** [You, VS Code Agent, other agents]
-**Branch:** [main / dev / feature-x]
-
-### What we worked on
-- (fill in)
-
-### Files touched
-- (fill in)
-
-### Outcomes / Decisions
--
 
 ## Archive (do not load by default)
 ...

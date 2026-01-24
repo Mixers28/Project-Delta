@@ -27,10 +27,10 @@ Ship a stable, iteratable Project Delta loop: tutorial → early real game ramp 
 
 ## What We Are Working On Right Now
 
-- [ ] Git hygiene: confirm `Library/`, `Logs/`, `obj/`, `.vs/`, `UserSettings/`, `Temp/` stay ignored and untracked; remove any remaining tracked/generated files (no local deletes).
+- [ ] Git hygiene: confirm `Library/`, `Logs/`, `obj/`, `.vs/`, `UserSettings/`, `Temp/` stay ignored and untracked; remove any remaining tracked/generated files (use `git rm` when needed; avoid deleting other local folders unless requested).
 - [ ] Run mode: confirm run persists through wins and “Continue”, and across “Quit (Save)” → relaunch; reset only on loss or explicit “Restart Run”.
 - [ ] Tutorial + progression: validate steps 1–7 targets (~2–3 min), and verify Mid tier behavior at 7 non-tutorial wins (no jokers; suit-agnostic runs disabled; suited runs only).
-- [ ] Hand UX: verify drag-to-reorder is stable (no flicker/jitter), stays within hand container bounds, and highlights insertion slot clearly.
+- [ ] Hand UX: fix mobile drag jitter in grid reorder; verify drag-to-reorder is stable (no flicker/jitter), stays within hand container bounds, and highlights insertion slot clearly.
 - [ ] Main menu UX: Achievements lives in menu; confirm quit dialog shows correct note; “Restart Game (Tutorial)” correctly replays intro/tutorial flow.
 - [ ] Run Edit/PlayMode tests in Unity Test Runner and keep `Assets/Tests` green.
 - [ ] Keep docs consistent: `SESSION_NOTES.md` (game) vs `docs/SESSION_NOTES.md` (agent session log); avoid cross-contamination.

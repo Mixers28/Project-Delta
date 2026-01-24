@@ -27,6 +27,9 @@ public class HandDisplay : MonoBehaviour
     private CanvasGroup draggingCanvasGroup;
     private LayoutElement draggingLayoutElement;
     private float lastDragEndTime;
+    private GridLayoutGroup handGrid;
+    private Canvas rootCanvas;
+    private float dragBaselineY;
     [Header("Drag Reorder")]
     [SerializeField] private float dragFollowTime = 0.12f;
     [SerializeField] private float maxDragSpeed = 4500f;
@@ -43,6 +46,11 @@ public class HandDisplay : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+        rootCanvas = GetComponentInParent<Canvas>();
+        if (handContainer != null)
+        {
+            handGrid = handContainer.GetComponent<GridLayoutGroup>();
+        }
     }
 
     private void Start()
@@ -158,10 +166,23 @@ public class HandDisplay : MonoBehaviour
         if (cachedGameState == null) return;
         if (handContainer == null) return;
         if (card == null) return;
+        if (rootCanvas == null)
+        {
+            rootCanvas = GetComponentInParent<Canvas>();
+        }
+        if (handGrid == null)
+        {
+            handGrid = handContainer.GetComponent<GridLayoutGroup>();
+        }
 
         draggingCard = card;
         dragVelocity = Vector2.zero;
         lastPlaceholderUpdateTime = 0f;
+        var cardRt = card.GetComponent<RectTransform>();
+        if (cardRt != null)
+        {
+            dragBaselineY = cardRt.anchoredPosition.y + dragLiftOffset;
+        }
         if (dimOtherCardsWhileDragging)
         {
             SetCardsDimmed(true, exclude: draggingCard);
@@ -173,7 +194,6 @@ public class HandDisplay : MonoBehaviour
         draggingPlaceholder.transform.SetSiblingIndex(card.transform.GetSiblingIndex());
 
         var placeholderLayout = draggingPlaceholder.AddComponent<LayoutElement>();
-        var cardRt = card.GetComponent<RectTransform>();
         if (cardRt != null)
         {
             placeholderLayout.preferredWidth = cardRt.rect.width;
@@ -323,14 +343,13 @@ public class HandDisplay : MonoBehaviour
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
             containerRt,
             eventData.position,
-            eventData.pressEventCamera,
+            GetEventCamera(eventData),
             out var localPoint))
         {
             var rt = draggingCard.transform as RectTransform;
             if (rt != null)
             {
-                var placeholderRt = draggingPlaceholder != null ? draggingPlaceholder.transform as RectTransform : null;
-                float baselineY = (placeholderRt != null ? placeholderRt.anchoredPosition.y : 0f) + dragLiftOffset;
+                float baselineY = dragBaselineY;
 
                 var desired = localPoint;
                 desired.y = Mathf.Clamp(desired.y, baselineY - dragYBand, baselineY + dragYBand);
@@ -391,13 +410,38 @@ public class HandDisplay : MonoBehaviour
     {
         if (draggingPlaceholder == null) return;
         if (handContainer == null) return;
-        if (Time.unscaledTime - lastPlaceholderUpdateTime < placeholderUpdateInterval) return;
+        if (placeholderUpdateInterval > 0f && Time.unscaledTime - lastPlaceholderUpdateTime < placeholderUpdateInterval) return;
         lastPlaceholderUpdateTime = Time.unscaledTime;
 
-        var draggingRt = draggingCard != null ? draggingCard.transform as RectTransform : null;
-        float draggedX = draggingRt != null ? draggingRt.anchoredPosition.x : eventData.position.x;
+        var containerRt = handContainer as RectTransform;
+        if (containerRt == null) return;
+        if (eventData == null) return;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            containerRt,
+            eventData.position,
+            GetEventCamera(eventData),
+            out var localPoint))
+        {
+            return;
+        }
+
+        int layoutChildCount = GetLayoutChildCount();
+        if (layoutChildCount <= 0) return;
+
+        if (handGrid != null)
+        {
+            int newIndex = GetGridSiblingIndex(containerRt, localPoint, layoutChildCount);
+            if (draggingPlaceholder.transform.GetSiblingIndex() != newIndex)
+            {
+                draggingPlaceholder.transform.SetSiblingIndex(newIndex);
+            }
+            return;
+        }
+
+        float draggedX = localPoint.x;
         int currentIndex = draggingPlaceholder.transform.GetSiblingIndex();
-        int newIndex = handContainer.childCount;
+        int newIndex = layoutChildCount;
 
         for (int i = 0; i < handContainer.childCount; i++)
         {
@@ -425,9 +469,99 @@ public class HandDisplay : MonoBehaviour
         if (draggingPlaceholder.transform.GetSiblingIndex() != newIndex)
         {
             // Clamp to valid range (SetSiblingIndex expects 0..childCount-1).
-            int clamped = Mathf.Clamp(newIndex, 0, Mathf.Max(0, handContainer.childCount - 1));
+            int clamped = Mathf.Clamp(newIndex, 0, Mathf.Max(0, layoutChildCount - 1));
             draggingPlaceholder.transform.SetSiblingIndex(clamped);
         }
+    }
+
+    private Camera GetEventCamera(PointerEventData eventData)
+    {
+        if (eventData != null && eventData.pressEventCamera != null)
+        {
+            return eventData.pressEventCamera;
+        }
+
+        if (rootCanvas != null && rootCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+        {
+            return rootCanvas.worldCamera;
+        }
+
+        return null;
+    }
+
+    private int GetLayoutChildCount()
+    {
+        if (handContainer == null) return 0;
+        int count = 0;
+        for (int i = 0; i < handContainer.childCount; i++)
+        {
+            var child = handContainer.GetChild(i);
+            if (draggingCard != null && child == draggingCard.transform) continue;
+            var layout = child.GetComponent<LayoutElement>();
+            if (layout != null && layout.ignoreLayout) continue;
+            count++;
+        }
+        return count;
+    }
+
+    private int GetGridSiblingIndex(RectTransform containerRt, Vector2 localPoint, int layoutChildCount)
+    {
+        var padding = handGrid.padding;
+        float cellW = handGrid.cellSize.x;
+        float cellH = handGrid.cellSize.y;
+        float spacingX = handGrid.spacing.x;
+        float spacingY = handGrid.spacing.y;
+
+        int columns = 1;
+        if (handGrid.constraint == GridLayoutGroup.Constraint.FixedColumnCount)
+        {
+            columns = Mathf.Max(1, handGrid.constraintCount);
+        }
+        else if (handGrid.constraint == GridLayoutGroup.Constraint.FixedRowCount)
+        {
+            int rows = Mathf.Max(1, handGrid.constraintCount);
+            columns = Mathf.Max(1, Mathf.CeilToInt(layoutChildCount / (float)rows));
+        }
+        else
+        {
+            float availableWidth = containerRt.rect.width - padding.left - padding.right;
+            float denom = Mathf.Max(1f, cellW + spacingX);
+            columns = Mathf.Max(1, Mathf.FloorToInt((availableWidth + spacingX) / denom));
+        }
+
+        int rowsEstimate = Mathf.Max(1, Mathf.CeilToInt(layoutChildCount / (float)columns));
+
+        float startX = containerRt.rect.xMin + padding.left;
+        float startY = containerRt.rect.yMax - padding.top;
+        float relX = localPoint.x - startX;
+        float relY = startY - localPoint.y;
+
+        int col = Mathf.FloorToInt(relX / Mathf.Max(1f, cellW + spacingX));
+        int row = Mathf.FloorToInt(relY / Mathf.Max(1f, cellH + spacingY));
+
+        col = Mathf.Clamp(col, 0, columns - 1);
+        row = Mathf.Clamp(row, 0, rowsEstimate - 1);
+
+        bool flipX = handGrid.startCorner == GridLayoutGroup.Corner.UpperRight ||
+                     handGrid.startCorner == GridLayoutGroup.Corner.LowerRight;
+        bool flipY = handGrid.startCorner == GridLayoutGroup.Corner.LowerLeft ||
+                     handGrid.startCorner == GridLayoutGroup.Corner.LowerRight;
+
+        if (flipX)
+        {
+            col = columns - 1 - col;
+        }
+        if (flipY)
+        {
+            row = rowsEstimate - 1 - row;
+        }
+
+        int index = handGrid.startAxis == GridLayoutGroup.Axis.Horizontal
+            ? (row * columns + col)
+            : (col * rowsEstimate + row);
+
+        int maxIndex = Mathf.Max(0, layoutChildCount - 1);
+        return Mathf.Clamp(index, 0, maxIndex);
     }
 
     private void SyncHandOrderFromVisuals()

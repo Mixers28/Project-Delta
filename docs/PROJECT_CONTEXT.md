@@ -18,7 +18,7 @@
 ## 1. Project Overview
 
 - **Name:** Project Delta
-- **Owner:** TBD
+- **Owner:** mixers28
 - **Purpose:** Ship a playable, iteratable card-puzzle with a tutorial-to-meta progression loop.
 - **Primary Stack:** Unity + C# + Unity Test Framework (no backend).
 - **Target Platforms:** Desktop (Unity Editor) initially.
