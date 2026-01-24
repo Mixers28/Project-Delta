@@ -52,6 +52,26 @@
 
 ## Recent Sessions (last 3-5)
 
+### 2026-01-24 (Session 2)
+
+**Participants:** User, Codex Agent
+**Branch:** main
+
+### What we worked on
+- Adjusted Win/Lose overlay button anchors/size for mobile and increased Continue label size.
+- Hid Startup overlay canvas until shown and set splash backdrop to FitInParent.
+- Restored Draw Stock/Discard button scale after accidental shrink.
+
+### Files touched
+- `Assets/Swivel.unity`
+- `Assets/Scripts/UI/StartupScreen.cs`
+- `docs/NOW.md`
+- `docs/SESSION_NOTES.md`
+
+### Outcomes / Decisions
+- Win/Lose Continue/Retry buttons should sit on-screen with readable labels.
+- Startup backdrop now fits parent without overflow; overlay stays hidden until shown.
+
 ### 2026-01-24
 
 **Participants:** User, Codex Agent
