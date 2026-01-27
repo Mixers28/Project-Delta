@@ -371,6 +371,11 @@ public class HandDisplay : MonoBehaviour
                 float baselineY = dragBaselineY;
 
                 var desired = localPoint + dragPointerOffset;
+                if (handGrid != null && IsTouchEvent(eventData))
+                {
+                    scaledBand = Mathf.Max(scaledBand, containerRt.rect.height);
+                }
+
                 desired.y = Mathf.Clamp(desired.y, baselineY - scaledBand, baselineY + scaledBand);
 
                 desired = ClampAnchoredPositionToContainer(containerRt, rt, desired);
@@ -561,8 +566,10 @@ public class HandDisplay : MonoBehaviour
 
         int rowsEstimate = Mathf.Max(1, Mathf.CeilToInt(layoutChildCount / (float)columns));
 
-        float startX = containerRt.rect.xMin + padding.left;
-        float startY = containerRt.rect.yMax - padding.top;
+        float requiredWidth = columns * cellW + Mathf.Max(0, columns - 1) * spacingX;
+        float requiredHeight = rowsEstimate * cellH + Mathf.Max(0, rowsEstimate - 1) * spacingY;
+        float startX = containerRt.rect.xMin + GetGridStartOffset(containerRt, 0, requiredWidth);
+        float startY = containerRt.rect.yMax - GetGridStartOffset(containerRt, 1, requiredHeight);
         float relX = localPoint.x - startX;
         float relY = startY - localPoint.y;
 
@@ -592,6 +599,32 @@ public class HandDisplay : MonoBehaviour
 
         int maxIndex = Mathf.Max(0, layoutChildCount - 1);
         return Mathf.Clamp(index, 0, maxIndex);
+    }
+
+    private float GetGridStartOffset(RectTransform containerRt, int axis, float requiredSpaceWithoutPadding)
+    {
+        if (handGrid == null || containerRt == null) return 0f;
+
+        float available = axis == 0 ? containerRt.rect.width : containerRt.rect.height;
+        float padding = axis == 0 ? handGrid.padding.horizontal : handGrid.padding.vertical;
+        float alignment = GetAlignmentOnAxis(axis);
+        float surplus = available - requiredSpaceWithoutPadding - padding;
+        float startPadding = axis == 0 ? handGrid.padding.left : handGrid.padding.top;
+
+        return startPadding + surplus * alignment;
+    }
+
+    private float GetAlignmentOnAxis(int axis)
+    {
+        if (handGrid == null) return 0f;
+        int alignment = (int)handGrid.childAlignment;
+        return axis == 0 ? (alignment % 3) * 0.5f : (alignment / 3) * 0.5f;
+    }
+
+    private static bool IsTouchEvent(PointerEventData eventData)
+    {
+        if (eventData == null) return false;
+        return eventData.pointerId >= 0;
     }
 
     private void SyncHandOrderFromVisuals()
