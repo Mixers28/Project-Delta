@@ -154,7 +154,8 @@ public class ActionButtons : MonoBehaviour
     private void UpdateDrawButtons(bool mustDiscard)
     {
         bool canDraw = cachedGameState.CanDraw();
-        bool stockAvailable = cachedGameState.Deck.DrawPileCount > 0;
+        bool stockAvailable = cachedGameState.Deck.DrawPileCount > 0
+            || cachedGameState.Deck.DiscardPileCount > 0;
         bool discardAvailable = cachedGameState.Deck.DiscardPileCount > 0;
 
         drawStockButton.interactable = (!mustDiscard && canDraw && stockAvailable);

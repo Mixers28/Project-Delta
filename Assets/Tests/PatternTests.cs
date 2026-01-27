@@ -41,6 +41,52 @@ public class PatternTests
     }
 
     [Test]
+    public void DrawFromStockRefillsFromDiscard()
+    {
+        var deck = new Deck();
+        while (deck.DrawFromStock().HasValue) { }
+
+        Assert.AreEqual(0, deck.DrawPileCount);
+
+        var cardA = new Card(Card.Suit.Hearts, Card.Rank.Ace);
+        var cardB = new Card(Card.Suit.Spades, Card.Rank.King);
+        deck.AddToDiscard(cardA);
+        deck.AddToDiscard(cardB);
+
+        var drawn = deck.DrawFromStock();
+        Assert.IsTrue(drawn.HasValue);
+        CollectionAssert.Contains(new List<Card> { cardA, cardB }, drawn.Value);
+        Assert.AreEqual(1, deck.DrawPileCount);
+        Assert.AreEqual(0, deck.DiscardPileCount);
+    }
+
+    [Test]
+    public void DrawFromStockReturnsNullWhenNoCardsRemain()
+    {
+        var deck = new Deck();
+        while (deck.DrawFromStock().HasValue) { }
+
+        var drawn = deck.DrawFromStock();
+        Assert.IsFalse(drawn.HasValue);
+    }
+
+    [Test]
+    public void DrawFromDiscardDoesNotRefillStock()
+    {
+        var deck = new Deck();
+        while (deck.DrawFromStock().HasValue) { }
+
+        var card = new Card(Card.Suit.Hearts, Card.Rank.Two);
+        deck.AddToDiscard(card);
+
+        var drawn = deck.DrawFromDiscard();
+        Assert.IsTrue(drawn.HasValue);
+        Assert.AreEqual(card, drawn.Value);
+        Assert.AreEqual(0, deck.DrawPileCount);
+        Assert.AreEqual(0, deck.DiscardPileCount);
+    }
+
+    [Test]
     public void SeededShuffleIsDeterministic()
     {
         var tweaks = new DeckTweakSettings

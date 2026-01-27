@@ -128,7 +128,13 @@ public class Deck
 
     public Card? DrawFromStock()
     {
-        if (drawPile.Count == 0) return null;
+        if (drawPile.Count == 0)
+        {
+            if (!RefillFromDiscard())
+            {
+                return null;
+            }
+        }
         
         Card card = drawPile[0];
         drawPile.RemoveAt(0);
@@ -149,5 +155,15 @@ public class Deck
     public void AddToDiscard(Card card)
     {
         discardPile.Add(card);
+    }
+
+    public bool RefillFromDiscard()
+    {
+        if (discardPile.Count == 0) return false;
+
+        drawPile.AddRange(discardPile);
+        discardPile.Clear();
+        Shuffle();
+        return true;
     }
 }
