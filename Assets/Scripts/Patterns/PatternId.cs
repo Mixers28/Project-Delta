@@ -19,5 +19,9 @@ public enum PatternId
     Flush5,
     FullHouse5,
 
-    RoyalFlush5
+    RoyalFlush5,
+
+    // Color-based runs (same color, consecutive ranks).
+    ColorRun3,
+    ColorRun4
 }

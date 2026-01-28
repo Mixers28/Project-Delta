@@ -123,11 +123,13 @@ public class AchievementsService
             case Goal.GoalType.Run3:
             case Goal.GoalType.StraightRun3:
             case Goal.GoalType.SuitedRun3:
+            case Goal.GoalType.ColorRun3:
                 return playedCount > 3;
 
             case Goal.GoalType.Run4:
             case Goal.GoalType.StraightRun4:
             case Goal.GoalType.SuitedRun4:
+            case Goal.GoalType.ColorRun4:
                 return playedCount > 4;
 
             case Goal.GoalType.SuitSet3Plus:

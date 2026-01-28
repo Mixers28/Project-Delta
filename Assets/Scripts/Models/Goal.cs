@@ -23,7 +23,11 @@ public class Goal
         SuitedRun5,
 
         SuitSet3Plus,
-        ColorSet3Plus
+        ColorSet3Plus,
+
+        // Advanced runs (color-based).
+        ColorRun3,
+        ColorRun4
     }
 
     public GoalType type;
@@ -57,9 +61,11 @@ public class Goal
                 GoalType.StraightRun5 => "Straight Runs of 5+",
                 GoalType.SuitedRun3 => "Suited Runs of 3",
                 GoalType.SuitedRun4 => "Suited Runs of 4",
-                GoalType.SuitedRun5 => "Suited Runs of 5+",
+                GoalType.SuitedRun5 => "Suited Runs of 5",
                 GoalType.SuitSet3Plus => "Suit Sets (3+)",
                 GoalType.ColorSet3Plus => "Color Sets (3+)",
+                GoalType.ColorRun3 => "Color Runs of 3",
+                GoalType.ColorRun4 => "Color Runs of 4",
                 GoalType.Flush => "Flushes",
                 GoalType.FullHouse => "Full Houses",
                 GoalType.TotalScore => "Score",
@@ -137,6 +143,13 @@ public class Goal
 
             case GoalType.ColorSet3Plus:
                 return pattern.Id == PatternId.ColorSet3Plus;
+
+            case GoalType.ColorRun3:
+                return pattern.Id == PatternId.ColorRun3 ||
+                       pattern.Id == PatternId.ColorRun4;
+
+            case GoalType.ColorRun4:
+                return pattern.Id == PatternId.ColorRun4;
 
             case GoalType.TotalScore:
                 return false; // Score goals handled separately

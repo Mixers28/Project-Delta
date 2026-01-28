@@ -54,10 +54,67 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        PatternValidator = new PatternValidator();
-        StartupScreen.ShowOnBoot(StartTestLevel);
+        StartCoroutine(BootSequence());
     }
     #endregion
+
+    private System.Collections.IEnumerator BootSequence()
+    {
+        PatternValidator = new PatternValidator();
+
+        if (AuthService.IsLoggedIn && !CloudProfileStore.BaseUrl.Contains("YOUR-RAILWAY-APP"))
+        {
+            bool done = false;
+            PlayerProfile serverProfile = null;
+            string error = null;
+
+            yield return CloudProfileStore.FetchProfile(
+                profile =>
+                {
+                    serverProfile = profile;
+                    done = true;
+                },
+                err =>
+                {
+                    error = err;
+                    done = true;
+                });
+
+            while (!done)
+            {
+                yield return null;
+            }
+
+            if (serverProfile != null)
+            {
+                var local = ProgressionService.Profile;
+                if (serverProfile.lastUpdatedUtc >= local.lastUpdatedUtc)
+                {
+                    ProgressionService.ReplaceProfile(serverProfile, saveLocal: true, includeCloud: false);
+                    ReinitializeProfileBoundServices();
+                }
+                else
+                {
+                    ProgressionService.Save(includeCloud: true);
+                }
+            }
+            else if (string.IsNullOrWhiteSpace(error))
+            {
+                // No profile on server yet; push local.
+                ProgressionService.Save(includeCloud: true);
+            }
+            else
+            {
+                Debug.LogWarning($"[Cloud] Profile fetch failed: {error}");
+            }
+        }
+        else if (AuthService.IsLoggedIn)
+        {
+            Debug.LogWarning("[Cloud] BaseUrl not configured; skipping cloud sync.");
+        }
+
+        StartupScreen.ShowOnBoot(StartTestLevel);
+    }
 
     // Entry point to start/restart the current level without changing the phase path
     public void StartTestLevel()
@@ -198,23 +255,28 @@ public class GameManager : MonoBehaviour
 
         // If the level doesn't explicitly gate patterns, hide suited runs until they're unlocked.
         var excludedList = new System.Collections.Generic.List<PatternId>();
-
-        // Mid+ tiers: no straight (suit-agnostic) runs; suited runs only.
-        if (ruleTier >= RuleTier.Mid)
-        {
-            excludedList.Add(PatternId.StraightRun3);
-            excludedList.Add(PatternId.StraightRun4);
-            excludedList.Add(PatternId.StraightRun5);
-        }
-
         System.Collections.Generic.IEnumerable<PatternId> excluded = null;
-        if (!hasGating && !ProgressionService.Profile.HasFeature(RunModeService.FeatureSuitedRuns))
+
+        // Always remove suited runs of 5+ (5+ runs stay suit-agnostic).
+        excludedList.Add(PatternId.SuitedRun5);
+
+        bool useAdvancedRuns = !ProgressionService.IsTutorialActive && ProgressionService.PostTutorialLevelIndex >= 10;
+        if (!useAdvancedRuns)
         {
             excludedList.AddRange(new[]
             {
                 PatternId.SuitedRun3,
                 PatternId.SuitedRun4,
-                PatternId.SuitedRun5
+                PatternId.ColorRun3,
+                PatternId.ColorRun4
+            });
+        }
+        else
+        {
+            excludedList.AddRange(new[]
+            {
+                PatternId.StraightRun3,
+                PatternId.StraightRun4
             });
         }
 
@@ -530,7 +592,7 @@ public class GameManager : MonoBehaviour
     private List<GoalDefinition> BuildVariantGoals(LevelDefinition baseDefinition, int difficultyStep, int totalMoves)
     {
         var goals = new List<GoalDefinition>();
-        var ruleTier = ProgressionService.CurrentRuleTier;
+        bool advancedRuns = !ProgressionService.IsTutorialActive && ProgressionService.PostTutorialLevelIndex >= 10;
 
         var baseGoals = baseDefinition.goals != null && baseDefinition.goals.Count > 0
             ? baseDefinition.goals
@@ -538,6 +600,7 @@ public class GameManager : MonoBehaviour
 
         foreach (var goal in baseGoals)
         {
+            var resolvedType = ResolveGoalTypeForRunRules(goal.goalType, advancedRuns);
             // Prefer variety/constraints over steadily inflating counts.
             int bonus = UnityEngine.Random.Range(0, 1 + Mathf.Min(difficultyStep, 1));
             var required = Mathf.Max(1, goal.required + bonus);
@@ -545,7 +608,7 @@ public class GameManager : MonoBehaviour
 
             goals.Add(new GoalDefinition
             {
-                goalType = goal.goalType,
+                goalType = resolvedType,
                 required = required
             });
         }
@@ -554,19 +617,20 @@ public class GameManager : MonoBehaviour
         if (difficultyStep >= 1 && goals.Count < 3)
         {
             var existing = new HashSet<Goal.GoalType>(goals.Select(g => g.goalType));
-            var extraType = GetRandomGoalType(existing, ruleTier);
+            var extraType = GetRandomGoalType(existing, advancedRuns);
             if (extraType.HasValue)
             {
+                var resolvedExtra = ResolveGoalTypeForRunRules(extraType.Value, advancedRuns);
                 int required = Mathf.Max(1, 1 + UnityEngine.Random.Range(0, 1));
             required = CapToMoves(required, totalMoves);
-                goals.Add(new GoalDefinition { goalType = extraType.Value, required = required });
+                goals.Add(new GoalDefinition { goalType = resolvedExtra, required = required });
             }
         }
 
         return goals;
     }
 
-    private Goal.GoalType? GetRandomGoalType(HashSet<Goal.GoalType> exclude, RuleTier ruleTier)
+    private Goal.GoalType? GetRandomGoalType(HashSet<Goal.GoalType> exclude, bool advancedRuns)
     {
         // Rotate through goal types except TotalScore to keep variety.
         var candidates = new List<Goal.GoalType>
@@ -582,12 +646,12 @@ public class GameManager : MonoBehaviour
             Goal.GoalType.FullHouse
         };
 
-        // Mid+ tiers: avoid straight-run goal types (suited runs only).
-        if (ruleTier >= RuleTier.Mid)
+        if (advancedRuns)
         {
-            candidates.Remove(Goal.GoalType.StraightRun3);
-            candidates.Remove(Goal.GoalType.StraightRun4);
-            candidates.Remove(Goal.GoalType.StraightRun5);
+            candidates.Add(Goal.GoalType.SuitedRun3);
+            candidates.Add(Goal.GoalType.SuitedRun4);
+            candidates.Add(Goal.GoalType.ColorRun3);
+            candidates.Add(Goal.GoalType.ColorRun4);
         }
 
         if (exclude != null && exclude.Count > 0)
@@ -599,6 +663,42 @@ public class GameManager : MonoBehaviour
 
         int index = UnityEngine.Random.Range(0, candidates.Count);
         return candidates[index];
+    }
+
+    private Goal.GoalType ResolveGoalTypeForRunRules(Goal.GoalType type, bool advancedRuns)
+    {
+        if (!advancedRuns)
+        {
+            return type switch
+            {
+                Goal.GoalType.Run3 => Goal.GoalType.StraightRun3,
+                Goal.GoalType.Run4 => Goal.GoalType.StraightRun4,
+                Goal.GoalType.Run5 => Goal.GoalType.StraightRun5,
+                Goal.GoalType.SuitedRun3 => Goal.GoalType.StraightRun3,
+                Goal.GoalType.SuitedRun4 => Goal.GoalType.StraightRun4,
+                Goal.GoalType.SuitedRun5 => Goal.GoalType.StraightRun5,
+                Goal.GoalType.ColorRun3 => Goal.GoalType.StraightRun3,
+                Goal.GoalType.ColorRun4 => Goal.GoalType.StraightRun4,
+                _ => type
+            };
+        }
+
+        return type switch
+        {
+            Goal.GoalType.Run3 => PickRunVariant(Goal.GoalType.SuitedRun3, Goal.GoalType.ColorRun3),
+            Goal.GoalType.StraightRun3 => PickRunVariant(Goal.GoalType.SuitedRun3, Goal.GoalType.ColorRun3),
+            Goal.GoalType.Run4 => PickRunVariant(Goal.GoalType.SuitedRun4, Goal.GoalType.ColorRun4),
+            Goal.GoalType.StraightRun4 => PickRunVariant(Goal.GoalType.SuitedRun4, Goal.GoalType.ColorRun4),
+            Goal.GoalType.Run5 => Goal.GoalType.StraightRun5,
+            Goal.GoalType.StraightRun5 => Goal.GoalType.StraightRun5,
+            Goal.GoalType.SuitedRun5 => Goal.GoalType.StraightRun5,
+            _ => type
+        };
+    }
+
+    private static Goal.GoalType PickRunVariant(Goal.GoalType suited, Goal.GoalType color)
+    {
+        return UnityEngine.Random.value < 0.5f ? suited : color;
     }
 
     private int CapToMoves(int required, int totalMoves)

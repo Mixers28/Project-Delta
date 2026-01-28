@@ -15,10 +15,21 @@ public class MainMenuScreen : MonoBehaviour
     private Button restartRunButton;
     private Button restartGameButton;
     private Button quitButton;
+    private Button accountButton;
     private TextMeshProUGUI statusText;
     private TextMeshProUGUI quitConfirmBodyText;
     private Button quitConfirmQuitButton;
     private Button quitConfirmCancelButton;
+    private CanvasGroup authGroup;
+    private TextMeshProUGUI authStatusText;
+    private TMP_InputField authEmailInput;
+    private TMP_InputField authPasswordInput;
+    private TMP_InputField authBaseUrlInput;
+    private Button authLoginButton;
+    private Button authSignupButton;
+    private Button authLogoutButton;
+    private Button authCancelButton;
+    private bool authInFlight;
 
     private float previousTimeScale = 1f;
 
@@ -123,23 +134,27 @@ public class MainMenuScreen : MonoBehaviour
 
         resumeButton = CreateButton(panelRt, "ResumeButton", "Resume");
         achievementsButton = CreateButton(panelRt, "AchievementsButton", "Achievements");
+        accountButton = CreateButton(panelRt, "AccountButton", "Account");
         restartRunButton = CreateButton(panelRt, "RestartRunButton", "Restart Run");
         restartGameButton = CreateButton(panelRt, "RestartGameButton", "Restart Game (Tutorial)");
         quitButton = CreateButton(panelRt, "QuitButton", "Quit (Save)");
 
-        PositionMenuButton(resumeButton, y: -340f);
-        PositionMenuButton(achievementsButton, y: -430f);
-        PositionMenuButton(restartRunButton, y: -520f);
-        PositionMenuButton(restartGameButton, y: -610f);
-        PositionMenuButton(quitButton, y: -720f);
+        PositionMenuButton(resumeButton, y: -320f);
+        PositionMenuButton(achievementsButton, y: -410f);
+        PositionMenuButton(accountButton, y: -500f);
+        PositionMenuButton(restartRunButton, y: -590f);
+        PositionMenuButton(restartGameButton, y: -680f);
+        PositionMenuButton(quitButton, y: -770f);
 
         resumeButton.onClick.AddListener(Hide);
         achievementsButton.onClick.AddListener(OnAchievements);
+        accountButton.onClick.AddListener(OnAccount);
         restartRunButton.onClick.AddListener(OnRestartRun);
         restartGameButton.onClick.AddListener(OnRestartGame);
         quitButton.onClick.AddListener(OnQuitRequested);
 
         BuildQuitConfirmDialog(overlayRt);
+        BuildAuthDialog(overlayRt);
     }
 
     private void BuildQuitConfirmDialog(RectTransform overlayRoot)
@@ -214,6 +229,117 @@ public class MainMenuScreen : MonoBehaviour
         quitConfirmQuitButton.onClick.AddListener(OnQuitConfirmed);
     }
 
+    private void BuildAuthDialog(RectTransform overlayRoot)
+    {
+        var authRootGo = new GameObject("AuthDialog");
+        authRootGo.transform.SetParent(overlayRoot, false);
+
+        var authRootRt = authRootGo.AddComponent<RectTransform>();
+        authRootRt.anchorMin = Vector2.zero;
+        authRootRt.anchorMax = Vector2.one;
+        authRootRt.offsetMin = Vector2.zero;
+        authRootRt.offsetMax = Vector2.zero;
+
+        var dim = authRootGo.AddComponent<Image>();
+        dim.color = new Color(0f, 0f, 0f, 0.35f);
+
+        authGroup = authRootGo.AddComponent<CanvasGroup>();
+        authGroup.alpha = 0f;
+        authGroup.interactable = false;
+        authGroup.blocksRaycasts = false;
+
+        var dialogGo = new GameObject("Dialog");
+        dialogGo.transform.SetParent(authRootRt, false);
+
+        var dialogRt = dialogGo.AddComponent<RectTransform>();
+        dialogRt.anchorMin = new Vector2(0.5f, 0.5f);
+        dialogRt.anchorMax = new Vector2(0.5f, 0.5f);
+        dialogRt.pivot = new Vector2(0.5f, 0.5f);
+        dialogRt.sizeDelta = new Vector2(860f, 640f);
+        dialogRt.anchoredPosition = Vector2.zero;
+
+        var dialogImage = dialogGo.AddComponent<Image>();
+        dialogImage.color = new Color(0.1f, 0.12f, 0.15f, 0.98f);
+
+        var title = CreateText(dialogRt, "Title", "Account", 52, bold: true);
+        title.alignment = TextAlignmentOptions.Center;
+        var titleRt = title.rectTransform;
+        titleRt.anchorMin = new Vector2(0.5f, 1f);
+        titleRt.anchorMax = new Vector2(0.5f, 1f);
+        titleRt.pivot = new Vector2(0.5f, 1f);
+        titleRt.anchoredPosition = new Vector2(0f, -28f);
+        titleRt.sizeDelta = new Vector2(820f, 80f);
+
+        authStatusText = CreateText(dialogRt, "Status", "Sign in to sync progress.", 28, bold: false);
+        authStatusText.alignment = TextAlignmentOptions.Center;
+        var statusRt = authStatusText.rectTransform;
+        statusRt.anchorMin = new Vector2(0.5f, 1f);
+        statusRt.anchorMax = new Vector2(0.5f, 1f);
+        statusRt.pivot = new Vector2(0.5f, 1f);
+        statusRt.anchoredPosition = new Vector2(0f, -120f);
+        statusRt.sizeDelta = new Vector2(820f, 90f);
+
+        authEmailInput = CreateInputField(dialogRt, "EmailInput", "Email", isPassword: false);
+        var emailRt = authEmailInput.GetComponent<RectTransform>();
+        emailRt.anchorMin = new Vector2(0.5f, 1f);
+        emailRt.anchorMax = new Vector2(0.5f, 1f);
+        emailRt.pivot = new Vector2(0.5f, 1f);
+        emailRt.anchoredPosition = new Vector2(0f, -220f);
+        emailRt.sizeDelta = new Vector2(620f, 70f);
+
+        authPasswordInput = CreateInputField(dialogRt, "PasswordInput", "Password", isPassword: true);
+        var passwordRt = authPasswordInput.GetComponent<RectTransform>();
+        passwordRt.anchorMin = new Vector2(0.5f, 1f);
+        passwordRt.anchorMax = new Vector2(0.5f, 1f);
+        passwordRt.pivot = new Vector2(0.5f, 1f);
+        passwordRt.anchoredPosition = new Vector2(0f, -310f);
+        passwordRt.sizeDelta = new Vector2(620f, 70f);
+
+        authBaseUrlInput = CreateInputField(dialogRt, "BaseUrlInput", "Cloud Base URL", isPassword: false);
+        var baseUrlRt = authBaseUrlInput.GetComponent<RectTransform>();
+        baseUrlRt.anchorMin = new Vector2(0.5f, 1f);
+        baseUrlRt.anchorMax = new Vector2(0.5f, 1f);
+        baseUrlRt.pivot = new Vector2(0.5f, 1f);
+        baseUrlRt.anchoredPosition = new Vector2(0f, -400f);
+        baseUrlRt.sizeDelta = new Vector2(620f, 70f);
+        authBaseUrlInput.text = CloudProfileStore.BaseUrl;
+        authBaseUrlInput.onEndEdit.AddListener(value =>
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            CloudProfileStore.BaseUrl = value.Trim();
+            if (authStatusText != null)
+            {
+                authStatusText.text = "Base URL saved.";
+            }
+        });
+
+        authLoginButton = CreateButton(dialogRt, "LoginButton", "Log In");
+        authSignupButton = CreateButton(dialogRt, "SignupButton", "Sign Up");
+        authLogoutButton = CreateButton(dialogRt, "LogoutButton", "Log Out");
+        authCancelButton = CreateButton(dialogRt, "CancelButton", "Close");
+
+        PositionAuthButton(authLoginButton, new Vector2(-170f, -510f));
+        PositionAuthButton(authSignupButton, new Vector2(170f, -510f));
+        PositionAuthButton(authLogoutButton, new Vector2(-170f, -590f));
+        PositionAuthButton(authCancelButton, new Vector2(170f, -590f));
+
+        authLoginButton.onClick.AddListener(() => StartCoroutine(AuthRoutine(isSignup: false)));
+        authSignupButton.onClick.AddListener(() => StartCoroutine(AuthRoutine(isSignup: true)));
+        authLogoutButton.onClick.AddListener(OnLogout);
+        authCancelButton.onClick.AddListener(HideAuthDialog);
+    }
+
+    private static void PositionAuthButton(Button button, Vector2 position)
+    {
+        if (button == null) return;
+        var rt = button.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.5f, 1f);
+        rt.anchorMax = new Vector2(0.5f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.anchoredPosition = position;
+        rt.sizeDelta = new Vector2(320f, 72f);
+    }
+
     private static void PositionMenuButton(Button button, float y)
     {
         if (button == null) return;
@@ -230,6 +356,7 @@ public class MainMenuScreen : MonoBehaviour
         Freeze();
         RefreshStatus();
         HideQuitConfirm();
+        HideAuthDialog();
         overlayGroup.alpha = 1f;
         overlayGroup.interactable = true;
         overlayGroup.blocksRaycasts = true;
@@ -254,6 +381,7 @@ public class MainMenuScreen : MonoBehaviour
         overlayGroup.interactable = false;
         overlayGroup.blocksRaycasts = false;
         HideQuitConfirm();
+        HideAuthDialog();
         Unfreeze();
 
         if (immediate)
@@ -274,9 +402,11 @@ public class MainMenuScreen : MonoBehaviour
             ? $"Run: {profile.currentRunLength} wins | Score: {profile.currentRunScore}"
             : "Run: not active";
 
+        string authLine = AuthService.IsLoggedIn ? "Cloud: signed in" : "Cloud: guest";
+
         statusText.text = tutorialActive
-            ? $"Tutorial Step: {profile.TutorialStep}/{ProgressionService.TutorialMaxStep}\n{runLine}"
-            : $"Non-tutorial wins: {profile.NonTutorialWins} | Tier: {ProgressionService.CurrentRuleTier}\n{runLine}";
+            ? $"Tutorial Step: {profile.TutorialStep}/{ProgressionService.TutorialMaxStep}\n{runLine}\n{authLine}"
+            : $"Non-tutorial wins: {profile.NonTutorialWins} | Tier: {ProgressionService.CurrentRuleTier}\n{runLine}\n{authLine}";
 
         if (restartRunButton != null)
         {
@@ -289,6 +419,11 @@ public class MainMenuScreen : MonoBehaviour
         var screen = AchievementsScreen.EnsureExists();
         screen.Show();
         Hide();
+    }
+
+    private void OnAccount()
+    {
+        ShowAuthDialog();
     }
 
     private void OnRestartRun()
@@ -344,10 +479,145 @@ public class MainMenuScreen : MonoBehaviour
         SetMenuButtonsInteractable(true);
     }
 
+    private void ShowAuthDialog()
+    {
+        if (authGroup == null) return;
+        RefreshAuthStatus();
+        SetMenuButtonsInteractable(false);
+        authGroup.alpha = 1f;
+        authGroup.interactable = true;
+        authGroup.blocksRaycasts = true;
+    }
+
+    private void HideAuthDialog()
+    {
+        if (authGroup == null) return;
+        authGroup.alpha = 0f;
+        authGroup.interactable = false;
+        authGroup.blocksRaycasts = false;
+        SetMenuButtonsInteractable(true);
+    }
+
+    private void RefreshAuthStatus()
+    {
+        if (authStatusText == null) return;
+        authStatusText.text = AuthService.IsLoggedIn
+            ? "Signed in. Progress will sync to cloud."
+            : "Guest mode. Sign in to sync progress.";
+
+        if (authBaseUrlInput != null && !authBaseUrlInput.isFocused)
+        {
+            authBaseUrlInput.text = CloudProfileStore.BaseUrl;
+        }
+
+        if (authLogoutButton != null)
+        {
+            authLogoutButton.interactable = AuthService.IsLoggedIn;
+        }
+    }
+
+    private System.Collections.IEnumerator AuthRoutine(bool isSignup)
+    {
+        if (authInFlight) yield break;
+        authInFlight = true;
+        SetAuthInteractable(false);
+
+        if (CloudProfileStore.BaseUrl.Contains("YOUR-RAILWAY-APP"))
+        {
+            authStatusText.text = "Set CloudProfileStore.BaseUrl to your Railway URL.";
+            SetAuthInteractable(true);
+            authInFlight = false;
+            yield break;
+        }
+
+        authStatusText.text = isSignup ? "Signing up..." : "Logging in...";
+
+        string email = authEmailInput != null ? authEmailInput.text.Trim() : string.Empty;
+        string password = authPasswordInput != null ? authPasswordInput.text : string.Empty;
+
+        string token = null;
+        string error = null;
+
+        var routine = isSignup
+            ? CloudProfileStore.Signup(email, password, t => token = t, err => error = err)
+            : CloudProfileStore.Login(email, password, t => token = t, err => error = err);
+
+        yield return routine;
+
+        if (!string.IsNullOrWhiteSpace(error))
+        {
+            authStatusText.text = error;
+            SetAuthInteractable(true);
+            authInFlight = false;
+            yield break;
+        }
+
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            AuthService.SetToken(token);
+        }
+
+        PlayerProfile serverProfile = null;
+        string profileError = null;
+        yield return CloudProfileStore.FetchProfile(profile => serverProfile = profile, err => profileError = err);
+
+        if (!string.IsNullOrWhiteSpace(profileError))
+        {
+            authStatusText.text = profileError;
+            SetAuthInteractable(true);
+            authInFlight = false;
+            yield break;
+        }
+
+        var local = ProgressionService.Profile;
+        if (serverProfile != null)
+        {
+            if (serverProfile.lastUpdatedUtc >= local.lastUpdatedUtc)
+            {
+                ProgressionService.ReplaceProfile(serverProfile, saveLocal: true, includeCloud: false);
+                GameManager.Instance?.ReinitializeProfileBoundServices();
+            }
+            else
+            {
+                ProgressionService.Save(includeCloud: true);
+            }
+        }
+        else
+        {
+            ProgressionService.Save(includeCloud: true);
+        }
+
+        RefreshStatus();
+        RefreshAuthStatus();
+        authStatusText.text = "Synced.";
+        SetAuthInteractable(true);
+        authInFlight = false;
+    }
+
+    private void OnLogout()
+    {
+        AuthService.ClearToken();
+        RefreshAuthStatus();
+        RefreshStatus();
+        authStatusText.text = "Logged out.";
+    }
+
+    private void SetAuthInteractable(bool interactable)
+    {
+        if (authEmailInput != null) authEmailInput.interactable = interactable;
+        if (authPasswordInput != null) authPasswordInput.interactable = interactable;
+        if (authBaseUrlInput != null) authBaseUrlInput.interactable = interactable;
+        if (authLoginButton != null) authLoginButton.interactable = interactable;
+        if (authSignupButton != null) authSignupButton.interactable = interactable;
+        if (authCancelButton != null) authCancelButton.interactable = interactable;
+        if (authLogoutButton != null) authLogoutButton.interactable = interactable && AuthService.IsLoggedIn;
+    }
+
     private void SetMenuButtonsInteractable(bool interactable)
     {
         if (resumeButton != null) resumeButton.interactable = interactable;
         if (achievementsButton != null) achievementsButton.interactable = interactable;
+        if (accountButton != null) accountButton.interactable = interactable;
         if (restartRunButton != null) restartRunButton.interactable = interactable;
         if (restartGameButton != null) restartGameButton.interactable = interactable;
         if (quitButton != null) quitButton.interactable = interactable;
@@ -413,6 +683,59 @@ public class MainMenuScreen : MonoBehaviour
         textRt.offsetMax = Vector2.zero;
 
         return button;
+    }
+
+    private static TMP_InputField CreateInputField(Transform parent, string name, string placeholderText, bool isPassword)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+
+        var image = go.AddComponent<Image>();
+        image.color = new Color(0.18f, 0.22f, 0.28f, 1f);
+
+        var input = go.AddComponent<TMP_InputField>();
+
+        var textArea = new GameObject("TextArea");
+        textArea.transform.SetParent(go.transform, false);
+        var textAreaRt = textArea.AddComponent<RectTransform>();
+        textAreaRt.anchorMin = Vector2.zero;
+        textAreaRt.anchorMax = Vector2.one;
+        textAreaRt.offsetMin = new Vector2(16f, 10f);
+        textAreaRt.offsetMax = new Vector2(-16f, -10f);
+
+        var text = new GameObject("Text");
+        text.transform.SetParent(textArea.transform, false);
+        var textComponent = text.AddComponent<TextMeshProUGUI>();
+        textComponent.color = Color.white;
+        textComponent.fontSize = 28;
+        textComponent.alignment = TextAlignmentOptions.Left;
+        var textRt = textComponent.rectTransform;
+        textRt.anchorMin = Vector2.zero;
+        textRt.anchorMax = Vector2.one;
+        textRt.offsetMin = Vector2.zero;
+        textRt.offsetMax = Vector2.zero;
+
+        var placeholder = new GameObject("Placeholder");
+        placeholder.transform.SetParent(textArea.transform, false);
+        var placeholderComponent = placeholder.AddComponent<TextMeshProUGUI>();
+        placeholderComponent.text = placeholderText;
+        placeholderComponent.color = new Color(1f, 1f, 1f, 0.5f);
+        placeholderComponent.fontSize = 28;
+        placeholderComponent.alignment = TextAlignmentOptions.Left;
+        var placeholderRt = placeholderComponent.rectTransform;
+        placeholderRt.anchorMin = Vector2.zero;
+        placeholderRt.anchorMax = Vector2.one;
+        placeholderRt.offsetMin = Vector2.zero;
+        placeholderRt.offsetMax = Vector2.zero;
+
+        input.textViewport = textAreaRt;
+        input.textComponent = textComponent;
+        input.placeholder = placeholderComponent;
+        input.lineType = TMP_InputField.LineType.SingleLine;
+        input.contentType = isPassword ? TMP_InputField.ContentType.Password : TMP_InputField.ContentType.Standard;
+        input.asteriskChar = '*';
+
+        return input;
     }
 
     private static TextMeshProUGUI CreateText(RectTransform parent, string name, string textValue, int size, bool bold)

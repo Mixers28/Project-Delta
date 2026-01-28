@@ -258,6 +258,48 @@ public class PatternTests
     }
 
     [Test]
+    public void ColorRunAllowsSameColor()
+    {
+        var run = new ColorRunPattern(3);
+        var cards = new List<Card>
+        {
+            new Card(Card.Suit.Hearts, Card.Rank.Five),
+            new Card(Card.Suit.Diamonds, Card.Rank.Six),
+            new Card(Card.Suit.Hearts, Card.Rank.Seven)
+        };
+
+        Assert.IsTrue(run.Validate(cards));
+    }
+
+    [Test]
+    public void ColorRunRejectsMixedColors()
+    {
+        var run = new ColorRunPattern(3);
+        var cards = new List<Card>
+        {
+            new Card(Card.Suit.Hearts, Card.Rank.Five),
+            new Card(Card.Suit.Clubs, Card.Rank.Six),
+            new Card(Card.Suit.Hearts, Card.Rank.Seven)
+        };
+
+        Assert.IsFalse(run.Validate(cards));
+    }
+
+    [Test]
+    public void ColorRunSupportsJokerGapFill()
+    {
+        var run = new ColorRunPattern(3);
+        var cards = new List<Card>
+        {
+            new Card(Card.Suit.Hearts, Card.Rank.Five),
+            new Card(Card.Suit.Joker, Card.Rank.Joker),
+            new Card(Card.Suit.Diamonds, Card.Rank.Seven)
+        };
+
+        Assert.IsTrue(run.Validate(cards));
+    }
+
+    [Test]
     public void LegacyRunGoalCountsStraightRuns()
     {
         var goal = new Goal(Goal.GoalType.Run3, 1);

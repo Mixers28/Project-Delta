@@ -91,6 +91,7 @@ public class ThreeOfKindPattern : IPattern
 public class RunPattern : IPattern
 {
     private int minimumLength;
+    private bool exactLength;
 
     public PatternId Id => minimumLength switch
     {
@@ -108,14 +109,22 @@ public class RunPattern : IPattern
         _ => 0
     };
 
-    public RunPattern(int length = 3)
+    public RunPattern(int length = 3, bool exactLength = false)
     {
         minimumLength = length;
+        this.exactLength = exactLength;
     }
 
     public bool Validate(List<Card> cards)
     {
-        if (cards.Count < minimumLength) return false;
+        if (exactLength)
+        {
+            if (cards.Count != minimumLength) return false;
+        }
+        else if (cards.Count < minimumLength)
+        {
+            return false;
+        }
         int jokerCount = cards.Count(c => c.IsJoker);
         var nonJokers = cards.Where(c => !c.IsJoker).ToList();
 
@@ -227,6 +236,98 @@ public class StraightRunPattern : IPattern
     }
 }
 
+// Color-based run pattern (same color, suit-agnostic) for advanced levels.
+public class ColorRunPattern : IPattern
+{
+    private int minimumLength;
+    private bool exactLength;
+
+    public PatternId Id => minimumLength switch
+    {
+        3 => PatternId.ColorRun3,
+        _ => PatternId.ColorRun4
+    };
+
+    public string Name => $"Color Run of {minimumLength}";
+    public int BasePoints => minimumLength switch
+    {
+        3 => 40,
+        4 => 80,
+        _ => 0
+    };
+
+    public ColorRunPattern(int length = 3, bool exactLength = true)
+    {
+        minimumLength = length;
+        this.exactLength = exactLength;
+    }
+
+    public bool Validate(List<Card> cards)
+    {
+        if (exactLength)
+        {
+            if (cards.Count != minimumLength) return false;
+        }
+        else if (cards.Count < minimumLength)
+        {
+            return false;
+        }
+
+        int jokerCount = cards.Count(c => c.IsJoker);
+        var nonJokers = cards.Where(c => !c.IsJoker).ToList();
+        if (nonJokers.Count == 0) return false;
+
+        if (!AllSameColor(nonJokers)) return false;
+
+        nonJokers = nonJokers.OrderBy(c => c.rank).ToList();
+
+        // Duplicate ranks can't form a run.
+        if (nonJokers.Select(c => c.rank).Distinct().Count() != nonJokers.Count)
+        {
+            return false;
+        }
+
+        return CanFormRun(nonJokers, jokerCount);
+    }
+
+    private static bool AllSameColor(List<Card> nonJokers)
+    {
+        bool isRed = IsRed(nonJokers[0]);
+        return nonJokers.All(card => IsRed(card) == isRed);
+    }
+
+    private static bool IsRed(Card card)
+    {
+        return card.suit == Card.Suit.Hearts || card.suit == Card.Suit.Diamonds;
+    }
+
+    private bool CanFormRun(List<Card> nonJokers, int jokersAvailable)
+    {
+        if (nonJokers.Count == 0)
+            return jokersAvailable >= minimumLength;
+
+        int jokersUsed = 0;
+        int expectedRank = (int)nonJokers[0].rank;
+
+        foreach (var card in nonJokers)
+        {
+            int gap = (int)card.rank - expectedRank;
+            if (gap < 0) return false;
+            jokersUsed += gap;
+            if (jokersUsed > jokersAvailable) return false;
+            expectedRank = (int)card.rank + 1;
+        }
+
+        int totalCards = nonJokers.Count + jokersAvailable;
+        return totalCards >= minimumLength;
+    }
+
+    public int CalculateScore(List<Card> cards)
+    {
+        return this.CalculateScoreWithMultipliers(cards);
+    }
+}
+
 // Pattern Validator
 public class PatternValidator
 {
@@ -267,12 +368,14 @@ public class PatternValidator
             new PairPattern(),
             new ThreeOfKindPattern(),
             new FourOfKindPattern(),
-            new RunPattern(3),
-            new RunPattern(4),
-            new RunPattern(5),
+            new RunPattern(3, exactLength: true),
+            new RunPattern(4, exactLength: true),
+            new RunPattern(5, exactLength: true),
             new StraightRunPattern(3),
             new StraightRunPattern(4),
             new StraightRunPattern(5),
+            new ColorRunPattern(3, exactLength: true),
+            new ColorRunPattern(4, exactLength: true),
             new SuitSetPattern(3),
             new ColorSetPattern(3),
             new FlushPattern(),           // NEW

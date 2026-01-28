@@ -21,6 +21,8 @@ public class PlayerProfile
 
     public int coins = 0;
 
+    public long lastUpdatedUtc = 0;
+
     public List<string> unlockedFeatures = new();
 
     public List<AchievementProgress> achievements = new();

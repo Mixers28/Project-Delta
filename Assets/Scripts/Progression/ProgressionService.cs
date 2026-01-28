@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public static class ProgressionService
@@ -27,6 +28,17 @@ public static class ProgressionService
     public static bool IsTutorialActive => Profile.TutorialStep <= TutorialMaxStep;
 
     public static int NonTutorialWins => Profile.NonTutorialWins;
+
+    // Post-tutorial level index (1-based). Returns 0 while tutorial is active.
+    public static int PostTutorialLevelIndex
+    {
+        get
+        {
+            EnsureInitialized();
+            if (IsTutorialActive) return 0;
+            return Mathf.Max(1, cachedProfile.NonTutorialWins + 1);
+        }
+    }
 
     public static RuleTier CurrentRuleTier
     {
@@ -58,7 +70,26 @@ public static class ProgressionService
     public static void Save()
     {
         EnsureInitialized();
+        Save(includeCloud: true, updateTimestamp: true);
+    }
+
+    public static void Save(bool includeCloud)
+    {
+        Save(includeCloud, updateTimestamp: true);
+    }
+
+    public static void Save(bool includeCloud, bool updateTimestamp)
+    {
+        EnsureInitialized();
+        if (updateTimestamp)
+        {
+            cachedProfile.lastUpdatedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        }
         PlayerProfileStore.Save(cachedProfile);
+        if (includeCloud && AuthService.IsLoggedIn)
+        {
+            CloudProfileStore.SaveProfile(cachedProfile);
+        }
     }
 
     public static void ResetProfile()
@@ -66,7 +97,17 @@ public static class ProgressionService
         PlayerProfileStore.Reset();
         cachedProfile = new PlayerProfile();
         initialized = true;
-        Save();
+        Save(includeCloud: true);
+    }
+
+    public static void ReplaceProfile(PlayerProfile profile, bool saveLocal = true, bool includeCloud = false)
+    {
+        EnsureInitialized();
+        cachedProfile = profile ?? new PlayerProfile();
+        if (saveLocal)
+        {
+            Save(includeCloud, updateTimestamp: false);
+        }
     }
 
     public static void SetTutorialStep(int step)

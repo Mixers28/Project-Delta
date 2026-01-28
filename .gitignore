@@ -43,3 +43,7 @@ unins000.exe
 
 # Deprecated repo (Godot)
 godot/
+
+# Backend
+backend/node_modules/
+backend/.env

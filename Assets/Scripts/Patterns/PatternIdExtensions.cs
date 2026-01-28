@@ -10,9 +10,9 @@ public static class PatternIdExtensions
             PatternId.ThreeOfKind => "Three of a Kind",
             PatternId.FourOfKind => "Four of a Kind",
 
-            PatternId.SuitedRun3 => "Suited Run (3+)",
-            PatternId.SuitedRun4 => "Suited Run (4+)",
-            PatternId.SuitedRun5 => "Suited Run (5+)",
+            PatternId.SuitedRun3 => "Suited Run (3)",
+            PatternId.SuitedRun4 => "Suited Run (4)",
+            PatternId.SuitedRun5 => "Suited Run (5)",
 
             PatternId.StraightRun3 => "Straight Run (3+)",
             PatternId.StraightRun4 => "Straight Run (4+)",
@@ -24,6 +24,9 @@ public static class PatternIdExtensions
             PatternId.Flush5 => "Flush (5)",
             PatternId.FullHouse5 => "Full House (5)",
             PatternId.RoyalFlush5 => "Royal Flush (5)",
+
+            PatternId.ColorRun3 => "Color Run (3)",
+            PatternId.ColorRun4 => "Color Run (4)",
 
             _ => id.ToString()
         };
