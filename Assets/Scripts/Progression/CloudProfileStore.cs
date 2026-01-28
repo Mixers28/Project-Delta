@@ -165,6 +165,11 @@ public static class CloudProfileStore
 
         if (!string.IsNullOrWhiteSpace(detail))
         {
+            if (detail.StartsWith("<!DOCTYPE", StringComparison.OrdinalIgnoreCase) ||
+                detail.StartsWith("<html", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"HTTP {request.responseCode}: Endpoint not found. Check Cloud Base URL.";
+            }
             try
             {
                 var parsed = JsonUtility.FromJson<ErrorResponse>(detail);

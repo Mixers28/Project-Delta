@@ -2085,13 +2085,13 @@ var tempI64;
 // === Body ===
 
 var ASM_CONSTS = {
-  2955120: function() {return Module.webglContextAttributes.premultipliedAlpha;},  
- 2955181: function() {return Module.webglContextAttributes.preserveDrawingBuffer;},  
- 2955245: function() {return Module.webglContextAttributes.powerPreference;},  
- 2955303: function() {Module['emscripten_get_now_backup'] = performance.now;},  
- 2955358: function($0) {performance.now = function() { return $0; };},  
- 2955406: function($0) {performance.now = function() { return $0; };},  
- 2955454: function() {performance.now = Module['emscripten_get_now_backup'];}
+  2955584: function() {return Module.webglContextAttributes.premultipliedAlpha;},  
+ 2955645: function() {return Module.webglContextAttributes.preserveDrawingBuffer;},  
+ 2955709: function() {return Module.webglContextAttributes.powerPreference;},  
+ 2955767: function() {Module['emscripten_get_now_backup'] = performance.now;},  
+ 2955822: function($0) {performance.now = function() { return $0; };},  
+ 2955870: function($0) {performance.now = function() { return $0; };},  
+ 2955918: function() {performance.now = Module['emscripten_get_now_backup'];}
 };
 
 
@@ -4605,6 +4605,11 @@ var ASM_CONSTS = {
   		return Module.SystemInfo.hasWebGL;
   	}
 
+  function _JS_SystemInfo_IsMobile() 
+  	{
+  		return Module.SystemInfo.mobile;
+  	}
+
   function _JS_UnityEngineShouldQuit() {
   	return !!Module.shouldQuit;
   }
@@ -4887,6 +4892,18 @@ var ASM_CONSTS = {
   
           requestOptions.timeout = timeout;
   	}
+
+  function _ShowPrompt(gameObjectNamePtr, callbackMethodPtr, messagePtr, defaultValuePtr) {
+      var gameObjectName = UTF8ToString(gameObjectNamePtr);
+      var callbackMethod = UTF8ToString(callbackMethodPtr);
+      var message = UTF8ToString(messagePtr);
+      var defaultValue = UTF8ToString(defaultValuePtr);
+      var result = window.prompt(message, defaultValue);
+      if (result === null) {
+        result = "";
+      }
+      SendMessage(gameObjectName, callbackMethod, result);
+    }
 
   function ___assert_fail(condition, filename, line, func) {
       abort('Assertion failed: ' + UTF8ToString(condition) + ', at: ' + [filename ? UTF8ToString(filename) : 'unknown filename', line, func ? UTF8ToString(func) : 'unknown function']);
@@ -15480,6 +15497,7 @@ var asmLibraryArg = {
   "JS_SystemInfo_HasCursorLock": _JS_SystemInfo_HasCursorLock,
   "JS_SystemInfo_HasFullscreen": _JS_SystemInfo_HasFullscreen,
   "JS_SystemInfo_HasWebGL": _JS_SystemInfo_HasWebGL,
+  "JS_SystemInfo_IsMobile": _JS_SystemInfo_IsMobile,
   "JS_UnityEngineShouldQuit": _JS_UnityEngineShouldQuit,
   "JS_WebRequest_Abort": _JS_WebRequest_Abort,
   "JS_WebRequest_Create": _JS_WebRequest_Create,
@@ -15490,6 +15508,7 @@ var asmLibraryArg = {
   "JS_WebRequest_SetRedirectLimit": _JS_WebRequest_SetRedirectLimit,
   "JS_WebRequest_SetRequestHeader": _JS_WebRequest_SetRequestHeader,
   "JS_WebRequest_SetTimeout": _JS_WebRequest_SetTimeout,
+  "ShowPrompt": _ShowPrompt,
   "__assert_fail": ___assert_fail,
   "__cxa_allocate_exception": ___cxa_allocate_exception,
   "__cxa_begin_catch": ___cxa_begin_catch,

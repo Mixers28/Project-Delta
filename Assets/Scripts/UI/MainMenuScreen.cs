@@ -25,6 +25,7 @@ public class MainMenuScreen : MonoBehaviour
     private TMP_InputField authEmailInput;
     private TMP_InputField authPasswordInput;
     private TMP_InputField authBaseUrlInput;
+    private WebGLPromptInput webglPrompt;
     private Button authLoginButton;
     private Button authSignupButton;
     private Button authLogoutButton;
@@ -327,6 +328,16 @@ public class MainMenuScreen : MonoBehaviour
         authSignupButton.onClick.AddListener(() => StartCoroutine(AuthRoutine(isSignup: true)));
         authLogoutButton.onClick.AddListener(OnLogout);
         authCancelButton.onClick.AddListener(HideAuthDialog);
+
+        webglPrompt = GetComponent<WebGLPromptInput>();
+        if (webglPrompt == null)
+        {
+            webglPrompt = gameObject.AddComponent<WebGLPromptInput>();
+        }
+
+        HookMobilePrompt(authEmailInput, "Email", isPassword: false);
+        HookMobilePrompt(authPasswordInput, "Password (visible)", isPassword: true);
+        HookMobilePrompt(authBaseUrlInput, "Cloud Base URL", isPassword: false);
     }
 
     private static void PositionAuthButton(Button button, Vector2 position)
@@ -338,6 +349,31 @@ public class MainMenuScreen : MonoBehaviour
         rt.pivot = new Vector2(0.5f, 1f);
         rt.anchoredPosition = position;
         rt.sizeDelta = new Vector2(320f, 72f);
+    }
+
+    private void HookMobilePrompt(TMP_InputField field, string label, bool isPassword)
+    {
+        if (field == null) return;
+        field.onSelect.AddListener(_ =>
+        {
+            if (!ShouldUseWebGLPrompt()) return;
+            if (webglPrompt == null) return;
+
+            var current = field.text ?? string.Empty;
+            webglPrompt.RequestPrompt(label, current, value =>
+            {
+                field.text = value ?? string.Empty;
+            });
+        });
+    }
+
+    private bool ShouldUseWebGLPrompt()
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        return Application.isMobilePlatform;
+#else
+        return false;
+#endif
     }
 
     private static void PositionMenuButton(Button button, float y)

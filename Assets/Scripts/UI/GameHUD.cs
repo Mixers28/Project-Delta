@@ -19,6 +19,7 @@ public class GameHUD : MonoBehaviour
             return;
         }
 
+        EnsureSafeArea();
         StartCoroutine(InitializeHUD());
     }
 
@@ -172,5 +173,13 @@ public class GameHUD : MonoBehaviour
         cachedGameState.OnCardDrawn += UpdateDeckCount;
 
         RefreshAllDisplays();
+    }
+
+    private void EnsureSafeArea()
+    {
+        var canvas = GetComponentInParent<Canvas>();
+        if (canvas == null) return;
+        if (canvas.GetComponent<SafeAreaFitter>() != null) return;
+        canvas.gameObject.AddComponent<SafeAreaFitter>();
     }
 }
