@@ -147,7 +147,7 @@ public class MainMenuScreen : MonoBehaviour
         PositionMenuButton(restartGameButton, y: -680f);
         PositionMenuButton(quitButton, y: -770f);
 
-        resumeButton.onClick.AddListener(Hide);
+        resumeButton.onClick.AddListener(OnResume);
         achievementsButton.onClick.AddListener(OnAchievements);
         accountButton.onClick.AddListener(OnAccount);
         restartRunButton.onClick.AddListener(OnRestartRun);
@@ -433,6 +433,8 @@ public class MainMenuScreen : MonoBehaviour
         var profile = ProgressionService.Profile;
         bool tutorialActive = ProgressionService.IsTutorialActive;
         bool runActive = RunModeService.IsActive;
+        bool hasSession = !tutorialActive && profile.activeSession != null && profile.activeSession.IsValid();
+        bool canResumeSession = hasSession && (GameManager.Instance == null || !GameManager.Instance.IsGameActive);
 
         string runLine = runActive
             ? $"Run: {profile.currentRunLength} wins | Score: {profile.currentRunScore}"
@@ -444,9 +446,19 @@ public class MainMenuScreen : MonoBehaviour
             ? $"Tutorial Step: {profile.TutorialStep}/{ProgressionService.TutorialMaxStep}\n{runLine}\n{authLine}"
             : $"Non-tutorial wins: {profile.NonTutorialWins} | Tier: {ProgressionService.CurrentRuleTier}\n{runLine}\n{authLine}";
 
+        if (hasSession && !tutorialActive)
+        {
+            statusText.text += canResumeSession ? "\nResume available." : "\nResume available (in progress).";
+        }
+
         if (restartRunButton != null)
         {
             restartRunButton.interactable = !tutorialActive && RunModeService.CanStart();
+        }
+
+        if (resumeButton != null)
+        {
+            resumeButton.interactable = tutorialActive || hasSession || (GameManager.Instance != null && GameManager.Instance.IsGameActive);
         }
     }
 
@@ -460,6 +472,15 @@ public class MainMenuScreen : MonoBehaviour
     private void OnAccount()
     {
         ShowAuthDialog();
+    }
+
+    private void OnResume()
+    {
+        Hide();
+        if (GameManager.Instance != null && !GameManager.Instance.IsGameActive && !ProgressionService.IsTutorialActive)
+        {
+            GameManager.Instance.StartTestLevel();
+        }
     }
 
     private void OnRestartRun()
@@ -617,7 +638,10 @@ public class MainMenuScreen : MonoBehaviour
 
         RefreshStatus();
         RefreshAuthStatus();
-        authStatusText.text = "Synced.";
+        bool hasSession = !ProgressionService.IsTutorialActive
+            && ProgressionService.Profile.activeSession != null
+            && ProgressionService.Profile.activeSession.IsValid();
+        authStatusText.text = hasSession ? "Synced. Resume available." : "Synced.";
         SetAuthInteractable(true);
         authInFlight = false;
     }

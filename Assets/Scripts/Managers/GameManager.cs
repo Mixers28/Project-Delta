@@ -11,6 +11,7 @@ public class GameManager : MonoBehaviour
     public PatternValidator PatternValidator { get; private set; }
     public bool IsRunModeActive => RunModeService.IsActive;
     public bool LastEndWasRunMode { get; private set; }
+    public bool IsGameActive => CurrentGame != null && !gameEnded;
 
     [Header("Level Configuration")]
     [SerializeField] private LevelDefinition testLevelDefinition;

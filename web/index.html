@@ -14,6 +14,10 @@
       background: #000;
       touch-action: none;
     }
+    body {
+      height: 100dvh;
+      width: 100dvw;
+    }
     #unity-container {
       position: fixed;
       inset: 0;
@@ -64,11 +68,19 @@
     const progressBarFull = document.querySelector("#unity-progress-bar-full");
 
     function resizeCanvas() {
-      canvas.style.width = "100%";
-      canvas.style.height = "100%";
+      const vv = window.visualViewport;
+      const width = vv ? Math.round(vv.width) : window.innerWidth;
+      const height = vv ? Math.round(vv.height) : window.innerHeight;
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
     }
 
     window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("orientationchange", resizeCanvas);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", resizeCanvas);
+      window.visualViewport.addEventListener("scroll", resizeCanvas);
+    }
     resizeCanvas();
 
     const config = {
