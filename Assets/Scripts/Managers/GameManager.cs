@@ -297,6 +297,7 @@ public class GameManager : MonoBehaviour
 
         // Notify listeners that a new game is ready so they can rebind UI
         OnGameStarted?.Invoke(CurrentGame);
+        MainMenuScreen.EnsureExists().SetMenuButtonVisible(true);
 
         Debug.Log($"=== LEVEL STARTED: {CurrentGame.LevelName} ===");
         Debug.Log($"Goals: {string.Join(", ", CurrentGame.Goals.ConvertAll(g => g.DisplayText))}");

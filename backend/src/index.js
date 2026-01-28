@@ -10,10 +10,30 @@ const app = express();
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+const rawOrigins = (process.env.CORS_ORIGIN || '*')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+const normalizeOrigin = (value) => {
+  if (!value) return value;
+  return value.endsWith('/') ? value.slice(0, -1) : value;
+};
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || rawOrigins.includes('*')) {
+      return callback(null, true);
+    }
+
+    const normalized = normalizeOrigin(origin);
+    const allowed = rawOrigins.some((entry) => normalizeOrigin(entry) === normalized);
+    return callback(null, allowed);
+  },
   credentials: true
-}));
+};
+
+app.use(cors(corsOptions));
 
 app.get('/health', (req, res) => {
   res.status(200).json({ ok: true });

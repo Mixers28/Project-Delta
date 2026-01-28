@@ -6,7 +6,7 @@ using UnityEngine.Networking;
 public static class CloudProfileStore
 {
     private const string BaseUrlKey = "ProjectDelta.CloudBaseUrl.v1";
-    private const string DefaultBaseUrl = "https://project-delta-production.up.railway.app/";
+    private const string DefaultBaseUrl = "https://project-delta-production.up.railway.app";
 
     [Serializable]
     private class AuthRequest
@@ -19,6 +19,12 @@ public static class CloudProfileStore
     private class AuthResponse
     {
         public string token;
+    }
+
+    [Serializable]
+    private class ErrorResponse
+    {
+        public string error;
     }
 
     [Serializable]
@@ -39,7 +45,7 @@ public static class CloudProfileStore
         get => PlayerPrefs.GetString(BaseUrlKey, DefaultBaseUrl);
         set
         {
-            PlayerPrefs.SetString(BaseUrlKey, value ?? string.Empty);
+            PlayerPrefs.SetString(BaseUrlKey, value != null ? value.Trim() : string.Empty);
             PlayerPrefs.Save();
         }
     }
@@ -76,11 +82,16 @@ public static class CloudProfileStore
 
         if (request.result != UnityWebRequest.Result.Success)
         {
-            onError?.Invoke(request.error);
+            onError?.Invoke(GetRequestError(request));
             yield break;
         }
 
         var response = JsonUtility.FromJson<ProfileResponse>(request.downloadHandler.text);
+        if (response != null && response.profile != null)
+        {
+            response.profile.TutorialStep = response.profile.TutorialStep;
+            response.profile.NonTutorialWins = response.profile.NonTutorialWins;
+        }
         onSuccess?.Invoke(response != null ? response.profile : null);
     }
 
@@ -105,7 +116,7 @@ public static class CloudProfileStore
 
         if (request.result != UnityWebRequest.Result.Success)
         {
-            onError?.Invoke(request.error);
+            onError?.Invoke(GetRequestError(request));
             yield break;
         }
 
@@ -133,7 +144,7 @@ public static class CloudProfileStore
 
         if (request.result != UnityWebRequest.Result.Success)
         {
-            onError?.Invoke(request.error);
+            onError?.Invoke(GetRequestError(request));
             yield break;
         }
 
@@ -145,5 +156,43 @@ public static class CloudProfileStore
         }
 
         onSuccess?.Invoke(response.token);
+    }
+
+    private static string GetRequestError(UnityWebRequest request)
+    {
+        string detail = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
+        string message = request.error;
+
+        if (!string.IsNullOrWhiteSpace(detail))
+        {
+            try
+            {
+                var parsed = JsonUtility.FromJson<ErrorResponse>(detail);
+                if (parsed != null && !string.IsNullOrWhiteSpace(parsed.error))
+                {
+                    message = parsed.error;
+                }
+                else
+                {
+                    message = detail;
+                }
+            }
+            catch
+            {
+                message = detail;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            message = "Request failed.";
+        }
+
+        if (request.responseCode > 0)
+        {
+            return $"HTTP {request.responseCode}: {message}";
+        }
+
+        return message;
     }
 }
