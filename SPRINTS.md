@@ -12,12 +12,14 @@ This breaks the agreed tutorial/progression work into small, shippable iteration
 - Sprint 5: implemented (seeded shuffle + optional preset draw pile; tutorial uses deterministic shuffle).
 - Sprint 6: implemented (basic achievements + coin rewards + win-screen summary).
 - Sprint 7: implemented (Run Mode start/stop + run stats persistence + suited-runs unlock gate).
+- Sprint 8: implemented (post-tutorial run gating + ColorRun goals + cloud persistence backend/auth + WebGL/mobile input + safe area).
 
 ## Product targets (locked)
 
 - Tutorial progression is **7 steps**, advancing **per level win** (a loss does not advance).
 - Target level length: **~2–3 minutes**, starting easy and ramping up.
 - Early game uses **Straight Runs** (suit-agnostic); **Suited Runs** unlock later as an advanced family.
+  - Post-tutorial gating decision: Straight runs through post-tutorial level 9; from level 10+ require suited/color runs for length 3/4; StraightRun5+ stays agnostic.
 
 ## Notes (read before starting)
 
@@ -204,6 +206,29 @@ This breaks the agreed tutorial/progression work into small, shippable iteration
 - Added editor tools to Start/Stop Run Mode (`Tools → Progression → Start/Stop Run Mode`).
 - Run mode ends on loss (Game Over shows "Run Ended" and offers "New Run").
 - Suited runs are filtered out of non-gated levels until `SuitedRuns` is unlocked (auto-unlocks after 5 non-tutorial wins).
+
+## Sprint 8 — Post-tutorial run gating + Cloud persistence (done)
+
+**Goal:** Align post-tutorial run rules and add cloud save/auth for WebGL/mobile sessions.
+
+- Add a post-tutorial level index (non-tutorial wins + 1) for gating.
+- Keep runs suit-agnostic through post-tutorial level 9.
+- From post-tutorial level 10+, require suited or color runs for length 3/4; keep StraightRun5+ always agnostic.
+- Add `ColorRunPattern` (consecutive ranks, same color, jokers allowed) and `ColorRun3/4` goal types.
+- Implement cloud persistence:
+  - Backend: Node/Express + Postgres (Railway), JWT auth, profile CRUD.
+  - Unity: `AuthService`, `CloudProfileStore`, and sync runner; account UI in main menu.
+  - WebGL/mobile: prompt-based text input fallback, safe area fitting, menu button persists across levels.
+
+**Done when:**
+- Post-tutorial run goals follow the level 9/10 gating rules.
+- Login/signup works against the Railway backend and profiles persist across sessions.
+
+**Implementation notes (done):**
+- Added `ProgressionService.PostTutorialLevelIndex` and gated run goals in `GameManager.InitializeNewGame`.
+- Added `ColorRunPattern`, `PatternId.ColorRun3/4`, and `GoalType.ColorRun3/4` (+ tests).
+- Added backend service under `backend/` with auth + profile endpoints and SQL schema.
+- Added Unity cloud sync + WebGL/mobile input and HUD safe-area fixes.
 
 ## Tracking / cadence
 

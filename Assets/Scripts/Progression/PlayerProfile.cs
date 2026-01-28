@@ -23,6 +23,10 @@ public class PlayerProfile
 
     public long lastUpdatedUtc = 0;
 
+    public long sessionUpdatedUtc = 0;
+
+    public SavedGameSession activeSession = null;
+
     public List<string> unlockedFeatures = new();
 
     public List<AchievementProgress> achievements = new();

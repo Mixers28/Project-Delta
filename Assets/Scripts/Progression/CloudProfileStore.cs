@@ -6,7 +6,7 @@ using UnityEngine.Networking;
 public static class CloudProfileStore
 {
     private const string BaseUrlKey = "ProjectDelta.CloudBaseUrl.v1";
-    private const string DefaultBaseUrl = "https://project-delta-production.up.railway.app";
+    private const string DefaultBaseUrl = "https://project-delta-production.up.railway.app" ;
 
     [Serializable]
     private class AuthRequest

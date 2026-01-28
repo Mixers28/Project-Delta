@@ -605,18 +605,10 @@ public class MainMenuScreen : MonoBehaviour
             yield break;
         }
 
-        var local = ProgressionService.Profile;
         if (serverProfile != null)
         {
-            if (serverProfile.lastUpdatedUtc >= local.lastUpdatedUtc)
-            {
-                ProgressionService.ReplaceProfile(serverProfile, saveLocal: true, includeCloud: false);
-                GameManager.Instance?.ReinitializeProfileBoundServices();
-            }
-            else
-            {
-                ProgressionService.Save(includeCloud: true);
-            }
+            ProgressionService.MergeFromCloud(serverProfile);
+            GameManager.Instance?.ReinitializeProfileBoundServices();
         }
         else
         {

@@ -10,6 +10,7 @@ public class GameState
     public Deck Deck { get; private set; }
     public int Score { get; private set; }
     public int MovesRemaining { get; private set; }
+    public int TotalMoves { get; private set; }
     public List<Goal> Goals { get; private set; }
     public string LevelName { get; private set; }
     public string DeckDescription { get; private set; }
@@ -38,6 +39,7 @@ public class GameState
         Hand = new List<Card>();
         Deck = new Deck();
         Goals = goals;
+        TotalMoves = totalMoves;
         MovesRemaining = totalMoves;
         Score = 0;
         LevelName = "Test Level";
@@ -49,12 +51,40 @@ public class GameState
         Hand = new List<Card>();
         Deck = new Deck();
         Goals = levelDefinition.BuildGoals();
+        TotalMoves = levelDefinition.totalMoves;
         MovesRemaining = levelDefinition.totalMoves;
         Score = 0;
         LevelName = string.IsNullOrWhiteSpace(levelDefinition.levelName) ? "Test Level" : levelDefinition.levelName;
         DeckDescription = levelDefinition.deckTweaks != null ? levelDefinition.deckTweaks.Describe() : "Standard deck (52 + 2 jokers)";
 
         Deck.ApplyTweaks(levelDefinition.deckTweaks);
+    }
+
+    public static GameState FromSession(SavedGameSession session)
+    {
+        if (session == null) return null;
+
+        var goals = new List<Goal>();
+        if (session.goals != null)
+        {
+            foreach (var snapshot in session.goals)
+            {
+                var goal = new Goal(snapshot.type, snapshot.required);
+                goal.current = snapshot.current;
+                goals.Add(goal);
+            }
+        }
+
+        var state = new GameState(goals, Mathf.Max(1, session.totalMoves));
+        state.MovesRemaining = Mathf.Max(0, session.movesRemaining);
+        state.Score = Mathf.Max(0, session.score);
+        state.LevelName = string.IsNullOrWhiteSpace(session.levelName) ? "Level" : session.levelName;
+        state.DeckDescription = session.deckDescription ?? string.Empty;
+        state.CurrentRuleTier = session.ruleTier;
+
+        state.Hand = session.hand != null ? new List<Card>(session.hand) : new List<Card>();
+        state.Deck.SetState(session.drawPile, session.discardPile);
+        return state;
     }
 
     public void ApplyRuleTier(RuleTier tier)

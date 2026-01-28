@@ -92,6 +92,68 @@ public static class ProgressionService
         }
     }
 
+    public static void SaveSession(SavedGameSession session, bool includeCloud = true)
+    {
+        EnsureInitialized();
+        if (IsTutorialActive) return;
+
+        cachedProfile.activeSession = session;
+        cachedProfile.sessionUpdatedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        Save(includeCloud, updateTimestamp: false);
+    }
+
+    public static void ClearSession(bool includeCloud = true)
+    {
+        EnsureInitialized();
+        if (cachedProfile.activeSession == null && cachedProfile.sessionUpdatedUtc == 0) return;
+
+        cachedProfile.activeSession = null;
+        cachedProfile.sessionUpdatedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        Save(includeCloud, updateTimestamp: false);
+    }
+
+    public static void MergeFromCloud(PlayerProfile serverProfile)
+    {
+        EnsureInitialized();
+        if (serverProfile == null) return;
+
+        var localProfile = cachedProfile;
+        bool localProfileNewer = localProfile.lastUpdatedUtc > serverProfile.lastUpdatedUtc;
+
+        if (!localProfileNewer)
+        {
+            var localSession = localProfile.activeSession;
+            var localSessionUpdated = localProfile.sessionUpdatedUtc;
+
+            ReplaceProfile(serverProfile, saveLocal: true, includeCloud: false);
+
+            if (localSession != null && localSessionUpdated > serverProfile.sessionUpdatedUtc)
+            {
+                cachedProfile.activeSession = localSession;
+                cachedProfile.sessionUpdatedUtc = localSessionUpdated;
+                Save(includeCloud: false, updateTimestamp: false);
+                if (AuthService.IsLoggedIn)
+                {
+                    Save(includeCloud: true, updateTimestamp: false);
+                }
+            }
+        }
+        else
+        {
+            if (serverProfile.sessionUpdatedUtc > localProfile.sessionUpdatedUtc)
+            {
+                cachedProfile.activeSession = serverProfile.activeSession;
+                cachedProfile.sessionUpdatedUtc = serverProfile.sessionUpdatedUtc;
+                Save(includeCloud: false, updateTimestamp: false);
+            }
+
+            if (AuthService.IsLoggedIn)
+            {
+                Save(includeCloud: true, updateTimestamp: true);
+            }
+        }
+    }
+
     public static void ResetProfile()
     {
         PlayerProfileStore.Reset();

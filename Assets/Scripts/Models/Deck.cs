@@ -157,6 +157,22 @@ public class Deck
         discardPile.Add(card);
     }
 
+    public List<Card> GetDrawPileSnapshot()
+    {
+        return new List<Card>(drawPile);
+    }
+
+    public List<Card> GetDiscardPileSnapshot()
+    {
+        return new List<Card>(discardPile);
+    }
+
+    public void SetState(List<Card> draw, List<Card> discard)
+    {
+        drawPile = draw != null ? new List<Card>(draw) : new List<Card>();
+        discardPile = discard != null ? new List<Card>(discard) : new List<Card>();
+    }
+
     public bool RefillFromDiscard()
     {
         if (discardPile.Count == 0) return false;

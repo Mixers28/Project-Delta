@@ -8,10 +8,15 @@ Project-Delta/
 │   │   ├── Progression/
 │   │   └── UI/
 │   └── Tests/
+├── backend/
+│   ├── src/
+│   ├── sql/
+│   └── scripts/
 ├── Packages/
 │   ├── manifest.json
 │   └── packages-lock.json
 ├── ProjectSettings/
+├── web/
 ├── docs/
 │   ├── PROJECT_CONTEXT.md
 │   ├── NOW.md

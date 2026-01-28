@@ -21,6 +21,10 @@ public class GameManager : MonoBehaviour
     private LevelDefinition[] loadedLevels = Array.Empty<LevelDefinition>();
     private int currentLevelIndex;
     private int progressionStep;
+    private bool sessionDirty;
+    private float nextSessionSaveTime;
+    private bool suppressSessionSave;
+    private const float SessionSaveDebounceSeconds = 1.0f;
 
     public System.Collections.Generic.IReadOnlyList<PatternId> AllowedPatterns { get; private set; } = System.Array.Empty<PatternId>();
     public AchievementsService Achievements { get; private set; }
@@ -56,6 +60,29 @@ public class GameManager : MonoBehaviour
     {
         StartCoroutine(BootSequence());
     }
+
+    private void Update()
+    {
+        if (suppressSessionSave || sessionDirty == false) return;
+        if (CurrentGame == null || gameEnded) return;
+        if (Time.unscaledTime < nextSessionSaveTime) return;
+
+        sessionDirty = false;
+        SaveActiveSession();
+    }
+
+    private void OnApplicationPause(bool pauseStatus)
+    {
+        if (pauseStatus)
+        {
+            SaveActiveSession();
+        }
+    }
+
+    private void OnApplicationQuit()
+    {
+        SaveActiveSession();
+    }
     #endregion
 
     private System.Collections.IEnumerator BootSequence()
@@ -87,16 +114,8 @@ public class GameManager : MonoBehaviour
 
             if (serverProfile != null)
             {
-                var local = ProgressionService.Profile;
-                if (serverProfile.lastUpdatedUtc >= local.lastUpdatedUtc)
-                {
-                    ProgressionService.ReplaceProfile(serverProfile, saveLocal: true, includeCloud: false);
-                    ReinitializeProfileBoundServices();
-                }
-                else
-                {
-                    ProgressionService.Save(includeCloud: true);
-                }
+                ProgressionService.MergeFromCloud(serverProfile);
+                ReinitializeProfileBoundServices();
             }
             else if (string.IsNullOrWhiteSpace(error))
             {
@@ -122,7 +141,13 @@ public class GameManager : MonoBehaviour
         if (progressionStep < 0) progressionStep = 0;
         if (ProgressionService.IsTutorialActive)
         {
+            ProgressionService.ClearSession(includeCloud: true);
             StartTutorialLevel();
+            return;
+        }
+
+        if (TryResumeActiveSession())
+        {
             return;
         }
 
@@ -254,36 +279,8 @@ public class GameManager : MonoBehaviour
         AllowedPatterns = hasGating ? new System.Collections.Generic.List<PatternId>(levelDefinition.AllowedPatterns) : System.Array.Empty<PatternId>();
 
         // If the level doesn't explicitly gate patterns, hide suited runs until they're unlocked.
-        var excludedList = new System.Collections.Generic.List<PatternId>();
-        System.Collections.Generic.IEnumerable<PatternId> excluded = null;
-
-        // Always remove suited runs of 5+ (5+ runs stay suit-agnostic).
-        excludedList.Add(PatternId.SuitedRun5);
-
         bool useAdvancedRuns = !ProgressionService.IsTutorialActive && ProgressionService.PostTutorialLevelIndex >= 10;
-        if (!useAdvancedRuns)
-        {
-            excludedList.AddRange(new[]
-            {
-                PatternId.SuitedRun3,
-                PatternId.SuitedRun4,
-                PatternId.ColorRun3,
-                PatternId.ColorRun4
-            });
-        }
-        else
-        {
-            excludedList.AddRange(new[]
-            {
-                PatternId.StraightRun3,
-                PatternId.StraightRun4
-            });
-        }
-
-        if (excludedList.Count > 0)
-        {
-            excluded = excludedList;
-        }
+        var excluded = BuildExcludedPatterns(useAdvancedRuns);
 
         bool allowJokersInSelection = ruleTier < RuleTier.Mid;
 
@@ -298,6 +295,7 @@ public class GameManager : MonoBehaviour
         // Notify listeners that a new game is ready so they can rebind UI
         OnGameStarted?.Invoke(CurrentGame);
         MainMenuScreen.EnsureExists().SetMenuButtonVisible(true);
+        MarkSessionDirty();
 
         Debug.Log($"=== LEVEL STARTED: {CurrentGame.LevelName} ===");
         Debug.Log($"Goals: {string.Join(", ", CurrentGame.Goals.ConvertAll(g => g.DisplayText))}");
@@ -440,6 +438,135 @@ public class GameManager : MonoBehaviour
         CheckLevelComplete();
     }
 
+    private void HandleSessionStateChanged()
+    {
+        MarkSessionDirty();
+    }
+
+    private void HandleSessionStateChanged(Goal _)
+    {
+        MarkSessionDirty();
+    }
+
+    private void HandleSessionStateChanged(int _)
+    {
+        MarkSessionDirty();
+    }
+
+    private void MarkSessionDirty()
+    {
+        if (ProgressionService.IsTutorialActive) return;
+        if (CurrentGame == null || gameEnded) return;
+
+        sessionDirty = true;
+        nextSessionSaveTime = Time.unscaledTime + SessionSaveDebounceSeconds;
+    }
+
+    private void SaveActiveSession()
+    {
+        if (ProgressionService.IsTutorialActive) return;
+        if (CurrentGame == null || gameEnded) return;
+
+        var session = BuildActiveSession();
+        ProgressionService.SaveSession(session, includeCloud: true);
+    }
+
+    private SavedGameSession BuildActiveSession()
+    {
+        var session = new SavedGameSession
+        {
+            version = 1,
+            levelIndex = currentLevelIndex,
+            progressionStep = progressionStep,
+            totalMoves = CurrentGame.TotalMoves,
+            movesRemaining = CurrentGame.MovesRemaining,
+            score = CurrentGame.Score,
+            levelName = CurrentGame.LevelName,
+            deckDescription = CurrentGame.DeckDescription,
+            ruleTier = CurrentGame.CurrentRuleTier,
+            advancedRuns = !ProgressionService.IsTutorialActive && ProgressionService.PostTutorialLevelIndex >= 10,
+            allowedPatterns = AllowedPatterns != null ? new List<PatternId>(AllowedPatterns) : new List<PatternId>(),
+            drawPile = CurrentGame.Deck.GetDrawPileSnapshot(),
+            discardPile = CurrentGame.Deck.GetDiscardPileSnapshot(),
+            hand = new List<Card>(CurrentGame.Hand),
+            goals = CurrentGame.Goals.Select(g => new GoalSnapshot(g)).ToList()
+        };
+
+        return session;
+    }
+
+    private bool TryResumeActiveSession()
+    {
+        if (ProgressionService.IsTutorialActive) return false;
+
+        var session = ProgressionService.Profile.activeSession;
+        if (session == null) return false;
+        if (!session.IsValid())
+        {
+            ProgressionService.ClearSession(includeCloud: true);
+            return false;
+        }
+
+        ResumeFromSession(session);
+        return true;
+    }
+
+    private void ResumeFromSession(SavedGameSession session)
+    {
+        suppressSessionSave = true;
+        sessionDirty = false;
+
+        gameEnded = false;
+        currentLevelIndex = Mathf.Clamp(session.levelIndex, 0, Mathf.Max(0, loadedLevels.Length - 1));
+        progressionStep = Mathf.Max(0, session.progressionStep);
+
+        CurrentGame = GameState.FromSession(session);
+        var allowed = session.allowedPatterns ?? new List<PatternId>();
+        AllowedPatterns = allowed.Count > 0 ? new List<PatternId>(allowed) : System.Array.Empty<PatternId>();
+
+        var excluded = BuildExcludedPatterns(session.advancedRuns);
+        bool allowJokersInSelection = session.ruleTier < RuleTier.Mid;
+        PatternValidator = allowed.Count > 0
+            ? new PatternValidator(AllowedPatterns, excludedPatterns: excluded, allowJokersInSelection: allowJokersInSelection)
+            : new PatternValidator(allowedPatterns: null, excludedPatterns: excluded, allowJokersInSelection: allowJokersInSelection);
+
+        BindGameEvents(CurrentGame);
+        OnGameStarted?.Invoke(CurrentGame);
+        MainMenuScreen.EnsureExists().SetMenuButtonVisible(true);
+
+        suppressSessionSave = false;
+        Debug.Log($"[Session] Resumed {CurrentGame.LevelName} at moves={CurrentGame.MovesRemaining}, score={CurrentGame.Score}.");
+    }
+
+    private static System.Collections.Generic.IEnumerable<PatternId> BuildExcludedPatterns(bool useAdvancedRuns)
+    {
+        var excludedList = new List<PatternId>
+        {
+            PatternId.SuitedRun5 // 5+ runs stay suit-agnostic
+        };
+
+        if (!useAdvancedRuns)
+        {
+            excludedList.AddRange(new[]
+            {
+                PatternId.SuitedRun3,
+                PatternId.SuitedRun4,
+                PatternId.ColorRun3,
+                PatternId.ColorRun4
+            });
+        }
+        else
+        {
+            excludedList.AddRange(new[]
+            {
+                PatternId.StraightRun3,
+                PatternId.StraightRun4
+            });
+        }
+
+        return excludedList;
+    }
+
     private void LockPlayerInput()
     {
         var actionButtons = FindObjectOfType<ActionButtons>();
@@ -495,6 +622,7 @@ public class GameManager : MonoBehaviour
                 ProgressionService.Save();
             }
 
+            ProgressionService.ClearSession(includeCloud: true);
             OnGameEnd?.Invoke(true); // Notify listeners of WIN
             Debug.Log("V OnGameEnd invoked for WIN");
             gameEnded = true;
@@ -510,6 +638,7 @@ public class GameManager : MonoBehaviour
             {
                 RunModeService.RecordRunEnd();
             }
+            ProgressionService.ClearSession(includeCloud: true);
             OnGameEnd?.Invoke(false); // Notify listeners of LOSS
             Debug.Log("V OnGameEnd invoked for LOSS");
             gameEnded = true;
@@ -718,6 +847,10 @@ public class GameManager : MonoBehaviour
         game.OnGoalUpdated += HandleGoalUpdated;
         game.OnScoreChanged += HandleScoreChanged;
         game.OnMovesChanged += HandleMovesChanged;
+        game.OnHandChanged += HandleSessionStateChanged;
+        game.OnGoalUpdated += HandleSessionStateChanged;
+        game.OnScoreChanged += HandleSessionStateChanged;
+        game.OnMovesChanged += HandleSessionStateChanged;
 
         if (Achievements != null)
         {
@@ -733,6 +866,10 @@ public class GameManager : MonoBehaviour
         game.OnGoalUpdated -= HandleGoalUpdated;
         game.OnScoreChanged -= HandleScoreChanged;
         game.OnMovesChanged -= HandleMovesChanged;
+        game.OnHandChanged -= HandleSessionStateChanged;
+        game.OnGoalUpdated -= HandleSessionStateChanged;
+        game.OnScoreChanged -= HandleSessionStateChanged;
+        game.OnMovesChanged -= HandleSessionStateChanged;
 
         if (Achievements != null)
         {

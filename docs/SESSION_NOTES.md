@@ -52,6 +52,30 @@
 
 ## Recent Sessions (last 3-5)
 
+### 2026-01-28
+
+**Participants:** User, Codex Agent
+**Branch:** main
+
+### What we worked on
+- Implemented post-tutorial run gating (straight runs through level 9; suited/color runs for 3/4 from level 10+) and added Color Run goals.
+- Added cloud persistence (Node/Express + Postgres on Railway) and Unity auth/sync client.
+- WebGL/mobile polish: prompt-based text input, safe-area fitting, and menu button persistence.
+- Debugged Railway deployment (branch mismatch, correct backend domain, and env vars).
+
+### Files touched
+- `Assets/Scripts/Progression/*`
+- `Assets/Scripts/UI/*`
+- `Assets/Plugins/WebGL/*`
+- `backend/*`
+- `Assets/Swivel.unity`, `Assets/Scenes/GameScene.unity`
+- `docs/NOW.md`
+- `docs/SESSION_NOTES.md`
+
+### Outcomes / Decisions
+- Backend service must deploy from `main` with root `backend` and use the backend domain for Cloud Base URL.
+- Signup/login validated via `/auth/signup`; `/health` returns `{"ok":true}` from the correct service.
+
 ### 2026-01-24 (Session 2)
 
 **Participants:** User, Codex Agent

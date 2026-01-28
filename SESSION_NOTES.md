@@ -1,6 +1,9 @@
 Session notes (Codex)
 ---------------------
 
+- Cloud persistence added: Node/Express backend + Postgres (Railway), JWT auth, profile CRUD; Unity `AuthService` + `CloudProfileStore` + `CloudSyncRunner` handle login/signup and sync; `PlayerProfile.lastUpdatedUtc` used for server-wins vs local conflict.
+- Run rules update (post-tutorial): runs are suit-agnostic through post-tutorial level 9; from post-tutorial level 10+ require suited or color runs for length 3/4; StraightRun5+ remains agnostic. Added `ColorRunPattern` and `ColorRun3/4` goals.
+- WebGL/mobile fixes: prompt-based text input on mobile WebGL, HUD safe-area fitting, canvas scaler match update, and menu button persists across levels.
 - Level progression now uses a `progressionStep`; each Continue advances level difficulty (goals/moves/tweaks), while Retry resets difficulty to 1 (base goals).
 - UI (HUD, ActionButtons, HandDisplay, GameOverPanel) rebinds to the new `GameState` on Continue/Retry and hides the overlay properly.
 - Playing a pattern no longer consumes a move (makes goals achievable within move limits).
