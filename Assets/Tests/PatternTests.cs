@@ -309,90 +309,6 @@ public class PatternTests
     }
 
     [Test]
-    public void ValidSuitSetIsDetected()
-    {
-        var suitSet = new SuitSetPattern(3);
-        var cards = new List<Card>
-        {
-            new Card(Card.Suit.Hearts, Card.Rank.Two),
-            new Card(Card.Suit.Hearts, Card.Rank.Five),
-            new Card(Card.Suit.Hearts, Card.Rank.King)
-        };
-
-        Assert.IsTrue(suitSet.Validate(cards));
-    }
-
-    [Test]
-    public void MixedSuitSetIsRejected()
-    {
-        var suitSet = new SuitSetPattern(3);
-        var cards = new List<Card>
-        {
-            new Card(Card.Suit.Hearts, Card.Rank.Two),
-            new Card(Card.Suit.Spades, Card.Rank.Five),
-            new Card(Card.Suit.Hearts, Card.Rank.King)
-        };
-
-        Assert.IsFalse(suitSet.Validate(cards));
-    }
-
-    [Test]
-    public void SuitSetWithJokerIsValid()
-    {
-        var suitSet = new SuitSetPattern(3);
-        var cards = new List<Card>
-        {
-            new Card(Card.Suit.Hearts, Card.Rank.Two),
-            new Card(Card.Suit.Joker, Card.Rank.Joker),
-            new Card(Card.Suit.Hearts, Card.Rank.King)
-        };
-
-        Assert.IsTrue(suitSet.Validate(cards));
-    }
-
-    [Test]
-    public void ValidColorSetIsDetected()
-    {
-        var colorSet = new ColorSetPattern(3);
-        var cards = new List<Card>
-        {
-            new Card(Card.Suit.Hearts, Card.Rank.Two),
-            new Card(Card.Suit.Diamonds, Card.Rank.Five),
-            new Card(Card.Suit.Hearts, Card.Rank.King)
-        };
-
-        Assert.IsTrue(colorSet.Validate(cards));
-    }
-
-    [Test]
-    public void MixedColorSetIsRejected()
-    {
-        var colorSet = new ColorSetPattern(3);
-        var cards = new List<Card>
-        {
-            new Card(Card.Suit.Hearts, Card.Rank.Two),
-            new Card(Card.Suit.Clubs, Card.Rank.Five),
-            new Card(Card.Suit.Hearts, Card.Rank.King)
-        };
-
-        Assert.IsFalse(colorSet.Validate(cards));
-    }
-
-    [Test]
-    public void ColorSetWithJokerIsValid()
-    {
-        var colorSet = new ColorSetPattern(3);
-        var cards = new List<Card>
-        {
-            new Card(Card.Suit.Clubs, Card.Rank.Two),
-            new Card(Card.Suit.Joker, Card.Rank.Joker),
-            new Card(Card.Suit.Spades, Card.Rank.King)
-        };
-
-        Assert.IsTrue(colorSet.Validate(cards));
-    }
-
-    [Test]
     public void GoalRelevantPatternIsPreferredOverHigherBaseScore()
     {
         var validator = new PatternValidator();
@@ -400,16 +316,18 @@ public class PatternTests
         {
             new Card(Card.Suit.Hearts, Card.Rank.Five),
             new Card(Card.Suit.Hearts, Card.Rank.Six),
-            new Card(Card.Suit.Hearts, Card.Rank.Queen)
+            new Card(Card.Suit.Hearts, Card.Rank.Seven),
+            new Card(Card.Suit.Hearts, Card.Rank.Eight),
+            new Card(Card.Suit.Hearts, Card.Rank.Nine)
         };
 
-        // This selection is both a Suit Set and a Color Set. If the goal is ColorSet,
-        // we should choose Color Set even though Suit Set has a higher base score.
-        var goals = new List<Goal> { new Goal(Goal.GoalType.ColorSet3Plus, 1) };
+        // This selection is both a suited run and a flush. If the goal is Flush,
+        // we should choose Flush even though the run has a higher base score.
+        var goals = new List<Goal> { new Goal(Goal.GoalType.Flush, 1) };
 
         var best = PatternSelection.GetBestPatternForGoals(validator, cards, goals);
         Assert.IsTrue(best.HasValue);
-        Assert.AreEqual(PatternId.ColorSet3Plus, best.Value.pattern.Id);
+        Assert.AreEqual(PatternId.Flush5, best.Value.pattern.Id);
     }
 
     [Test]
@@ -644,6 +562,22 @@ public class PatternTests
     public void ThreeOfKindGoalCountsFourOfKind()
     {
         var goal = new Goal(Goal.GoalType.ThreeOfKind, 1);
+        var four = new FourOfKindPattern();
+        Assert.IsTrue(goal.MatchesPattern(four));
+    }
+
+    [Test]
+    public void PairGoalCountsThreeOfKind()
+    {
+        var goal = new Goal(Goal.GoalType.Pair, 1);
+        var three = new ThreeOfKindPattern();
+        Assert.IsTrue(goal.MatchesPattern(three));
+    }
+
+    [Test]
+    public void PairGoalCountsFourOfKind()
+    {
+        var goal = new Goal(Goal.GoalType.Pair, 1);
         var four = new FourOfKindPattern();
         Assert.IsTrue(goal.MatchesPattern(four));
     }

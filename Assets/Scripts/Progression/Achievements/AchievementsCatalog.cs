@@ -9,8 +9,6 @@ public static class AchievementsCatalog
         new(AchievementIds.FirstStraightRun3, "Run Rookie", "Play your first straight run of 3.", targetValue: 1, rewardCoins: 25),
 
         new(AchievementIds.FirstSuitedRun3, "Suited Runner", "Play your first suited run.", targetValue: 1, rewardCoins: 35),
-        new(AchievementIds.FirstSuitSet, "Suit Up", "Play your first suit set (3+).", targetValue: 1, rewardCoins: 25),
-        new(AchievementIds.FirstColorSet, "Color Coder", "Play your first color set (3+).", targetValue: 1, rewardCoins: 25),
 
         new(AchievementIds.FirstFourOfKind, "Quad Squad", "Play your first four of a kind.", targetValue: 1, rewardCoins: 75),
         new(AchievementIds.FirstRoyalFlush, "Royalty", "Play a royal flush.", targetValue: 1, rewardCoins: 125),

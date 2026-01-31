@@ -281,7 +281,7 @@ public class GameManager : MonoBehaviour
 
         // If the level doesn't explicitly gate patterns, hide suited runs until they're unlocked.
         bool useAdvancedRuns = !ProgressionService.IsTutorialActive && ProgressionService.PostTutorialLevelIndex >= 10;
-        var excluded = BuildExcludedPatterns(useAdvancedRuns);
+        var excluded = BuildExcludedPatterns(useAdvancedRuns, hasGating);
 
         bool allowJokersInSelection = ruleTier < RuleTier.Mid;
 
@@ -525,7 +525,7 @@ public class GameManager : MonoBehaviour
         var allowed = session.allowedPatterns ?? new List<PatternId>();
         AllowedPatterns = allowed.Count > 0 ? new List<PatternId>(allowed) : System.Array.Empty<PatternId>();
 
-        var excluded = BuildExcludedPatterns(session.advancedRuns);
+        var excluded = BuildExcludedPatterns(session.advancedRuns, allowed.Count > 0);
         bool allowJokersInSelection = session.ruleTier < RuleTier.Mid;
         PatternValidator = allowed.Count > 0
             ? new PatternValidator(AllowedPatterns, excludedPatterns: excluded, allowJokersInSelection: allowJokersInSelection)
@@ -539,8 +539,13 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[Session] Resumed {CurrentGame.LevelName} at moves={CurrentGame.MovesRemaining}, score={CurrentGame.Score}.");
     }
 
-    private static System.Collections.Generic.IEnumerable<PatternId> BuildExcludedPatterns(bool useAdvancedRuns)
+    private static System.Collections.Generic.IEnumerable<PatternId> BuildExcludedPatterns(bool useAdvancedRuns, bool hasGating)
     {
+        if (hasGating)
+        {
+            return System.Array.Empty<PatternId>();
+        }
+
         var excludedList = new List<PatternId>
         {
             PatternId.SuitedRun5 // 5+ runs stay suit-agnostic
@@ -771,8 +776,6 @@ public class GameManager : MonoBehaviour
             Goal.GoalType.Run3,
             Goal.GoalType.Run4,
             Goal.GoalType.Run5,
-            Goal.GoalType.SuitSet3Plus,
-            Goal.GoalType.ColorSet3Plus,
             Goal.GoalType.Flush,
             Goal.GoalType.FullHouse
         };
@@ -787,6 +790,11 @@ public class GameManager : MonoBehaviour
 
         if (exclude != null && exclude.Count > 0)
         {
+            if (exclude.Any(IsRunGoal))
+            {
+                candidates.RemoveAll(IsRunGoal);
+            }
+
             candidates = candidates.Where(c => !exclude.Contains(c)).ToList();
         }
 
@@ -794,6 +802,27 @@ public class GameManager : MonoBehaviour
 
         int index = UnityEngine.Random.Range(0, candidates.Count);
         return candidates[index];
+    }
+
+    private static bool IsRunGoal(Goal.GoalType type)
+    {
+        switch (type)
+        {
+            case Goal.GoalType.Run3:
+            case Goal.GoalType.Run4:
+            case Goal.GoalType.Run5:
+            case Goal.GoalType.StraightRun3:
+            case Goal.GoalType.StraightRun4:
+            case Goal.GoalType.StraightRun5:
+            case Goal.GoalType.SuitedRun3:
+            case Goal.GoalType.SuitedRun4:
+            case Goal.GoalType.SuitedRun5:
+            case Goal.GoalType.ColorRun3:
+            case Goal.GoalType.ColorRun4:
+                return true;
+            default:
+                return false;
+        }
     }
 
     private Goal.GoalType ResolveGoalTypeForRunRules(Goal.GoalType type, bool advancedRuns)

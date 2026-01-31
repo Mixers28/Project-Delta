@@ -49,16 +49,6 @@ public class AchievementsService
             Increment(AchievementIds.FirstSuitedRun3, 1);
         }
 
-        if (pattern.Id == PatternId.SuitSet3Plus)
-        {
-            Increment(AchievementIds.FirstSuitSet, 1);
-        }
-
-        if (pattern.Id == PatternId.ColorSet3Plus)
-        {
-            Increment(AchievementIds.FirstColorSet, 1);
-        }
-
         if (pattern.Id == PatternId.FourOfKind)
         {
             Increment(AchievementIds.FirstFourOfKind, 1);
@@ -114,6 +104,9 @@ public class AchievementsService
 
         switch (goalType)
         {
+            case Goal.GoalType.Pair:
+                return pattern.Id == PatternId.ThreeOfKind || pattern.Id == PatternId.FourOfKind;
+
             case Goal.GoalType.ThreeOfKind:
                 return pattern.Id == PatternId.FourOfKind;
 
@@ -131,10 +124,6 @@ public class AchievementsService
             case Goal.GoalType.SuitedRun4:
             case Goal.GoalType.ColorRun4:
                 return playedCount > 4;
-
-            case Goal.GoalType.SuitSet3Plus:
-            case Goal.GoalType.ColorSet3Plus:
-                return playedCount > 3;
 
             default:
                 return false;

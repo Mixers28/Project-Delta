@@ -5,10 +5,10 @@
 
 <!-- SUMMARY_START -->
 **Current Focus (auto-maintained by Agent):**
-- Verify Railway backend deploy (main branch) and confirm `/health`, `/auth/signup`, `/auth/login` responses.
-- Wire Unity Cloud Base URL to the backend domain (no trailing slash) and validate signup/login in WebGL.
-- WebGL/mobile UX polish: prompt-based text input, safe-area alignment, and menu button persistence across levels.
-- Confirm post-tutorial run gating (straight runs through level 9; suited/color runs for 3/4 from level 10+).
+- Finalize the 7-step tutorial pattern progression and verify per-level gating (suited/color runs should work when explicitly allowed).
+- Remove Suit/Color Set patterns from gameplay and ensure goals/achievements/docs align.
+- UI polish: startup intro copy and win/lose button readability (Continue label size).
+- Keep README + memory docs aligned with recent gameplay/rules changes.
 <!-- SUMMARY_END -->
 
 ---
@@ -27,11 +27,10 @@ Ship a stable, iteratable Project Delta loop: tutorial → early real game ramp 
 
 ## What We Are Working On Right Now
 
-- [ ] Railway backend: confirm service uses `main` branch and environment vars (`DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGIN`) are set for build/runtime; `/health` returns `{"ok":true}`.
-- [ ] Unity cloud auth: confirm Cloud Base URL uses backend domain; signup/login works on WebGL and mobile (keyboard prompt shows).
-- [ ] WebGL UI: verify HUD safe-area alignment and menu button remains visible after entering/exiting levels.
-- [ ] Progression rules: validate post-tutorial run gating (straight runs through level 9; suited/color runs for 3/4 from level 10+).
-- [ ] Docs: keep `SESSION_NOTES.md` (game) vs `docs/SESSION_NOTES.md` (agent session log) in sync.
+- [ ] Tutorial: confirm step 1–7 goals/patterns match the new rule order and play correctly.
+- [ ] Pattern gating: ensure explicit `allowedPatterns` overrides exclusions in tutorial and sessions.
+- [ ] UI: verify Continue button label matches action button readability.
+- [ ] Docs: update README + memory docs to reflect tutorial/pattern changes.
 
 ---
 

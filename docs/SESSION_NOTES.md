@@ -52,6 +52,37 @@
 
 ## Recent Sessions (last 3-5)
 
+### 2026-01-31
+
+**Participants:** User, Codex Agent
+**Branch:** main
+
+### What we worked on
+- Removed Suit/Color Set patterns and achievements; updated goals/tests to match.
+- Rebuilt the tutorial into a 7-rule sequence (Pair, Three-of-a-Kind, Four-of-a-Kind, Suited Run 3, Straight Run 3, Color Run 3, Flush).
+- Added a Four-of-a-Kind goal type for tutorial clarity; pair goals now count higher kinds.
+- Fixed pattern gating so explicit `allowedPatterns` overrides exclusions; prevented multiple run goals in dynamic goal selection.
+- UI polish: removed the startup “Tip” copy (kept intro), increased Continue button text size in the Swivel scene.
+
+### Files touched
+- `Assets/Scripts/Patterns/AllPatterns.cs`
+- `Assets/Scripts/Models/Goal.cs`
+- `Assets/Scripts/Progression/TutorialLevelFactory.cs`
+- `Assets/Scripts/Managers/GameManager.cs`
+- `Assets/Scripts/Progression/Achievements/*`
+- `Assets/Tests/PatternTests.cs`
+- `Assets/Tests/TutorialLevelFactoryTests.cs`
+- `Assets/Scripts/UI/StartupScreen.cs`
+- `Assets/Swivel.unity`
+- `README.md`
+- `docs/PROJECT_CONTEXT.md`
+- `docs/NOW.md`
+
+### Outcomes / Decisions
+- Suit/Color Set patterns are no longer part of gameplay.
+- Tutorial steps now explicitly introduce 7 patterns, one per step.
+- Explicit per-level pattern gating is authoritative over exclusion rules.
+
 ### 2026-01-28
 
 **Participants:** User, Codex Agent

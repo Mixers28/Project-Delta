@@ -22,12 +22,16 @@ public class Goal
         SuitedRun4,
         SuitedRun5,
 
+        // Deprecated (Suit/Color sets removed from gameplay; kept for serialization compatibility).
         SuitSet3Plus,
         ColorSet3Plus,
 
         // Advanced runs (color-based).
         ColorRun3,
-        ColorRun4
+        ColorRun4,
+
+        // Added for tutorial clarity (kept at end to preserve serialized enum order).
+        FourOfKind
     }
 
     public GoalType type;
@@ -66,8 +70,9 @@ public class Goal
                 GoalType.ColorSet3Plus => "Color Sets (3+)",
                 GoalType.ColorRun3 => "Color Runs of 3",
                 GoalType.ColorRun4 => "Color Runs of 4",
-                GoalType.Flush => "Flushes",
-                GoalType.FullHouse => "Full Houses",
+                GoalType.FourOfKind => "Four of a Kind",
+                GoalType.Flush => "Flush",
+                GoalType.FullHouse => "Full House",
                 GoalType.TotalScore => "Score",
                 _ => "Unknown"
             };
@@ -82,7 +87,9 @@ public class Goal
         switch (type)
         {
             case GoalType.Pair:
-                return pattern.Id == PatternId.Pair;
+                return pattern.Id == PatternId.Pair ||
+                       pattern.Id == PatternId.ThreeOfKind ||
+                       pattern.Id == PatternId.FourOfKind;
 
             case GoalType.ThreeOfKind:
                 return pattern.Id == PatternId.ThreeOfKind || pattern.Id == PatternId.FourOfKind;
@@ -150,6 +157,9 @@ public class Goal
 
             case GoalType.ColorRun4:
                 return pattern.Id == PatternId.ColorRun4;
+
+            case GoalType.FourOfKind:
+                return pattern.Id == PatternId.FourOfKind;
 
             case GoalType.TotalScore:
                 return false; // Score goals handled separately

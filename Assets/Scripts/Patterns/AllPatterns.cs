@@ -376,8 +376,6 @@ public class PatternValidator
             new StraightRunPattern(5),
             new ColorRunPattern(3, exactLength: true),
             new ColorRunPattern(4, exactLength: true),
-            new SuitSetPattern(3),
-            new ColorSetPattern(3),
             new FlushPattern(),           // NEW
             new RoyalFlushPattern(),
             new FullHousePattern()        // NEW

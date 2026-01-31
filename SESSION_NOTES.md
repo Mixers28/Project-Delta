@@ -3,6 +3,7 @@ Session notes (Codex)
 
 - Cloud persistence added: Node/Express backend + Postgres (Railway), JWT auth, profile CRUD; Unity `AuthService` + `CloudProfileStore` + `CloudSyncRunner` handle login/signup and sync; `PlayerProfile.lastUpdatedUtc` used for server-wins vs local conflict.
 - Run rules update (post-tutorial): runs are suit-agnostic through post-tutorial level 9; from post-tutorial level 10+ require suited or color runs for length 3/4; StraightRun5+ remains agnostic. Added `ColorRunPattern` and `ColorRun3/4` goals.
+- Tutorial rules update: 7-step tutorial now introduces Pair, Three-of-a-Kind, Four-of-a-Kind, Suited Run (3), Straight Run (3), Color Run (3), and Flush. Suit/Color Set patterns removed from gameplay.
 - WebGL/mobile fixes: prompt-based text input on mobile WebGL, HUD safe-area fitting, canvas scaler match update, and menu button persists across levels.
 - Level progression now uses a `progressionStep`; each Continue advances level difficulty (goals/moves/tweaks), while Retry resets difficulty to 1 (base goals).
 - UI (HUD, ActionButtons, HandDisplay, GameOverPanel) rebinds to the new `GameState` on Continue/Retry and hides the overlay properly.
@@ -40,40 +41,40 @@ Tutorial session arc (1–7)
    - Goals: Pairs x2
    - Moves: 12–14
 
-2) Straight Runs Intro
-   - Enabled patterns: StraightRun3 (suit-agnostic)
-   - Goals: StraightRun3 x1
+2) Three of a Kind
+   - Enabled patterns: ThreeOfKind
+   - Goals: ThreeOfKind x1
    - Moves: 12–14
 
-3) Mix Basics
-   - Enabled patterns: Pair, StraightRun3
-   - Goals: Pairs x2 + StraightRun3 x1
+3) Four of a Kind
+   - Enabled patterns: FourOfKind
+   - Goals: FourOfKind x1
    - Moves: 14–16
 
-4) Suit Sets (not suited runs)
-   - Enabled patterns: Pair, StraightRun3, SuitSet3+
-   - Goals: SuitSet3+ x1 + Pairs x1
+4) Suited Runs (3)
+   - Enabled patterns: SuitedRun3
+   - Goals: SuitedRun3 x1
    - Moves: 16–18
 
-5) Color Sets
-   - Enabled patterns: Pair, StraightRun3, SuitSet3+, ColorSet3+
-   - Goals: ColorSet3+ x1 + Pairs x1
+5) Straight Runs (3)
+   - Enabled patterns: StraightRun3 (suit-agnostic)
+   - Goals: StraightRun3 x1
    - Moves: 16–18
 
-6) Hand Management / Discard Matters
-   - Enabled patterns: all from Session 5
-   - Goals: AnyPatterns x3 (or 3 specific patterns; TBD)
+6) Color Runs (3)
+   - Enabled patterns: ColorRun3
+   - Goals: ColorRun3 x1
    - Moves: 16–18
 
-7) Capstone + Longer Straight Runs
-   - Enabled patterns: add StraightRun4+
-   - Goals: StraightRun4+ x1 + AnyPattern x2 (+ optional efficiency bonus: win with ≥3 moves left)
+7) Flush
+   - Enabled patterns: Flush5
+   - Goals: Flush x1
    - Moves: 18–22
 
 Post-tutorial rollout
 ---------------------
 
-- Early real levels: keep StraightRun enabled alongside pairs/sets.
+- Early real levels: keep StraightRun enabled alongside pairs/kinds.
 - Later chapter: introduce SuitedRun3/4+ as an explicit "advanced runs" unlock and level theme.
 
 Sprint plan

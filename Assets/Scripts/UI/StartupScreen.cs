@@ -275,9 +275,7 @@ public class StartupScreen : MonoBehaviour
             "• Draw fills your hand to max for 1 move.\n" +
             "• Discard costs 1 move, no matter how many cards you discard.\n\n" +
             "Goals:\n" +
-            "• Complete the listed goals before you run out of moves.\n\n" +
-            "Tip:\n" +
-            "• Early sessions are suit-agnostic — focus on learning runs and pairs.";
+            "• Complete the listed goals before you run out of moves.";
 
         var bodyText = CreateText(rt, "Body", body, 32, bold: false);
         bodyText.alignment = TextAlignmentOptions.TopLeft;

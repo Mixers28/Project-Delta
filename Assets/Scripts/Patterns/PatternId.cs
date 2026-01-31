@@ -13,6 +13,7 @@ public enum PatternId
     StraightRun4,
     StraightRun5,
 
+    // Deprecated (Suit/Color sets removed from gameplay; kept for serialization compatibility).
     SuitSet3Plus,
     ColorSet3Plus,
 

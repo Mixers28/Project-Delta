@@ -23,6 +23,9 @@ See `.github/copilot-instructions.md` for detailed developer workflows and archi
 - Added level progression that generates a new Stage on each win (harder goals/moves/deck tweaks); Continue advances the stage.
 - Retry now resets progression to Stage 1 (base goals) to allow a fresh attempt after failure.
 - Playing a pattern no longer consumes a move, making goal completion more achievable within move limits.
+- Tutorial revamped to a 7-rule progression: Pair, Three of a Kind, Four of a Kind, Suited Run (3), Straight Run (3), Color Run (3), Flush.
+- Suit/Color Set patterns removed from gameplay.
+- Explicit per-level pattern gating now overrides exclusion rules (tutorial-specific patterns always valid).
 - HUD overlay cleaned up: shows only Stage and goals (deck/level labels removed).
 - Action panel simplified to three buttons: Draw Stock, Draw Discard, Play Pattern.
 - Draw Stock now discards selected cards first (when over hand limit) then refills from stock.
@@ -41,12 +44,12 @@ Assets/
 │   │   ├── Deck.cs             (Draw/discard piles, shuffling)
 │   │   └── Goal.cs             (Level objectives, progress tracking)
 │   ├── Patterns/
-│   │   ├── AllPatterns.cs      (IPattern interface, PatternValidator)
+│   │   ├── AllPatterns.cs      (IPattern interface, Pair/Three/Run/Straight/Color, PatternValidator)
+│   │   ├── FourOfKindPattern.cs (4 cards, same rank)
 │   │   ├── FlushPattern.cs      (5 cards, same suit)
 │   │   ├── FullHousePattern.cs  (5 cards, 3-of-a-kind + pair)
-│   │   ├── PairPattern.cs       (2 cards, same rank)
-│   │   ├── RunPattern.cs        (3/4/5+ cards in sequence)
-│   │   └── ThreeOfKindPattern.cs (3 cards, same rank)
+│   │   ├── RoyalFlushPattern.cs (5 cards, 10-J-Q-K-A same suit)
+│   │   └── PatternSelection.cs  (Goal-aware best pattern selection)
 │   └── UI/
 │       ├── ActionButtons.cs      (Draw/Play/Discard controls)
 │       ├── CardDisplay.cs        (Individual card rendering)
@@ -67,9 +70,13 @@ Assets/
 ### Patterns (Valid Plays)
 - **Pair** (2 cards): Same rank or both jokers → **10 pts**
 - **Three of a Kind** (3 cards): Same rank, jokers as wildcards → **30 pts**
-- **Run** (3, 4, or 5+ cards): Same suit in sequence, jokers fill gaps → **40/80/150 pts**
+- **Four of a Kind** (4 cards): Same rank, jokers as wildcards → **120 pts**
+- **Suited Run** (3, 4, or 5 cards): Same suit in sequence, jokers fill gaps → **40/80/150 pts**
+- **Straight Run** (3, 4, or 5+ cards): Any suits in sequence, jokers fill gaps → **40/80/150 pts**
+- **Color Run** (3 or 4 cards): Same color in sequence, jokers fill gaps → **40/80 pts**
 - **Flush** (5 cards): All same suit → **100 pts**
 - **Full House** (5 cards): 3-of-a-kind + pair, jokers as wildcards → **200 pts**
+- **Royal Flush** (5 cards): 10-J-Q-K-A same suit (no jokers) → **250 pts**
 
 ### Scoring Multipliers
 - Joker in hand: ×1.5
@@ -78,7 +85,7 @@ Assets/
 
 ### Level Goals
 A level is won by completing all goals within the move limit. Goals track:
-- Number of pairs, three-of-a-kinds, runs, flushes, full houses played
+- Number of pairs (three/four-of-a-kind also satisfy), three-of-a-kinds (four-of-a-kind also satisfies), run types (straight/suited/color), flushes (royal flush also satisfies), and full houses played
 - Total score reached
 
 ### Gameplay Flow
@@ -132,8 +139,9 @@ Add `Debug.Log` in:
 
 ### Pattern Validation
 `PatternValidator.GetBestPattern(cards)` returns the highest-scoring valid match, considering:
-- All 7 pattern types
-- Joker wildcards
+- All registered pattern types (pairs, kinds, runs, flushes, full house, royal flush)
+- Joker wildcards (except Royal Flush)
+- Level gating: when `allowedPatterns` is specified, exclusions are skipped so explicit rules always apply
 - Scoring multipliers
 
 ## Technology Stack

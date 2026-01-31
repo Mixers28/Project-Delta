@@ -5,8 +5,6 @@ public static class AchievementIds
     public const string FirstStraightRun3 = "ACH_FIRST_RUN_3";
 
     public const string FirstSuitedRun3 = "ACH_FIRST_SUITED_RUN_3";
-    public const string FirstSuitSet = "ACH_FIRST_SUIT_SET";
-    public const string FirstColorSet = "ACH_FIRST_COLOR_SET";
     public const string FirstFourOfKind = "ACH_FIRST_FOUR_OF_KIND";
     public const string FirstRoyalFlush = "ACH_FIRST_ROYAL_FLUSH";
     public const string Overachiever = "ACH_OVERACHIEVER";
